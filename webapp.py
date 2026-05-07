@@ -180,6 +180,7 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                     "summary": historical["summary"],
                     "mapping": historical["mapping"],
                     "sql": historical["sql"],
+                    "user_requirement": historical.get("user_requirement", ""),
                 },
                 "current": {
                     "summary": current_result["summary"],
@@ -188,6 +189,7 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                     "mode": current_result.get("mode", "rule"),
                     "mapping_diagnosis": current_result["mapping_diagnosis"],
                     "mapping_repaired": current_result["mapping_repaired"],
+                    "user_requirement": ai_config.get("user_requirement", ""),
                 },
                 "sql_diff": self.version_store._line_diff(historical["sql"], current_result["sql"]),
                 "mapping_diff": self.version_store._line_diff(
@@ -245,12 +247,14 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                 mode=result.get("mode", "rule"),
                 style_issues=result["style_issues"],
                 summary=result["summary"],
+                user_requirement=ai_config.get("user_requirement", ""),
             )
             result["version_record"] = {
                 "version_no": version_record["version_no"],
                 "created_at": version_record["created_at"],
                 "task_name": version_record["task_name"],
             }
+            result["user_requirement"] = ai_config.get("user_requirement", "")
 
         return result
 

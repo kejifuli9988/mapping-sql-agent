@@ -153,7 +153,7 @@ h1 {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 .panel {
@@ -244,6 +244,11 @@ textarea {
     min-height: 240px;
 }
 
+#requirementInput,
+#compareRequirementInput {
+    min-height: 180px;
+}
+
 input,
 select {
     padding: 12px 14px;
@@ -269,6 +274,10 @@ select:focus {
     grid-template-columns: 1fr 1fr 1fr;
 }
 
+.compare-grid-two {
+    grid-template-columns: 1fr 1fr;
+}
+
 .compare-detail-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -286,6 +295,10 @@ select:focus {
     padding: 12px 14px;
     font-size: 13px;
     line-height: 1.6;
+}
+
+.compare-hint-top {
+    margin-bottom: 14px;
 }
 
 .key-row {

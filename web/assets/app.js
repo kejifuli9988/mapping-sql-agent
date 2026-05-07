@@ -1,6 +1,9 @@
 const mappingInput = document.getElementById("mappingInput");
+const requirementInput = document.getElementById("requirementInput");
+const requirementSection = document.getElementById("requirementSection");
 const summaryCard = document.getElementById("summaryCard");
 const versionCard = document.getElementById("versionCard");
+const requirementCard = document.getElementById("requirementCard");
 const sqlOutput = document.getElementById("sqlOutput");
 const draftSqlOutput = document.getElementById("draftSqlOutput");
 const normalizedMappingOutput = document.getElementById("normalizedMappingOutput");
@@ -12,6 +15,8 @@ const downloadTemplateBtn = document.getElementById("downloadTemplateBtn");
 const generateBtn = document.getElementById("generateBtn");
 const copySqlBtn = document.getElementById("copySqlBtn");
 const modeSelect = document.getElementById("modeSelect");
+const deepseekModelSection = document.getElementById("deepseekModelSection");
+const deepseekConfigSection = document.getElementById("deepseekConfigSection");
 const apiKeyInput = document.getElementById("apiKeyInput");
 const modelInput = document.getElementById("modelInput");
 const excelInput = document.getElementById("excelInput");
@@ -30,6 +35,8 @@ const versionsList = document.getElementById("versionsList");
 const compareSummaryCard = document.getElementById("compareSummaryCard");
 const historyMappingOutput = document.getElementById("historyMappingOutput");
 const historySqlOutput = document.getElementById("historySqlOutput");
+const compareRequirementSection = document.getElementById("compareRequirementSection");
+const compareRequirementInput = document.getElementById("compareRequirementInput");
 const compareMappingInput = document.getElementById("compareMappingInput");
 const currentCompareSqlOutput = document.getElementById("currentCompareSqlOutput");
 const sqlDiffOutput = document.getElementById("sqlDiffOutput");
@@ -106,7 +113,7 @@ async function generateSql() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 mapping_text: raw,
-                ai_config: buildAiConfig()
+                ai_config: buildAiConfig(requirementInput.value.trim())
             })
         });
         const data = await response.json();
@@ -123,7 +130,11 @@ async function generateSql() {
         renderIssues(mappingDiagnosisList, resolveMappingDiagnosis(data));
         renderIssues(issuesList, data.style_issues);
         updateVersionCard(data.version_record);
+        updateRequirementCard(data.user_requirement || "");
         compareMappingInput.value = JSON.stringify(data.normalized_mapping, null, 2);
+        if (data.user_requirement) {
+            compareRequirementInput.value = data.user_requirement;
+        }
 
         if (data.fallback_used) {
             setMessage(`DeepSeek 调用失败，已自动回退到规则模式：${data.fallback_reason}`, "error");
@@ -137,6 +148,7 @@ async function generateSql() {
     } catch (error) {
         summaryCard.textContent = "生成失败";
         versionCard.textContent = "当前还没有生成版本。";
+        requirementCard.textContent = "当前未使用需求增强。";
         sqlOutput.textContent = "请检查 Mapping 内容后重试。";
         draftSqlOutput.textContent = "未生成草稿。";
         normalizedMappingOutput.textContent = "未生成修复后的 Mapping。";
@@ -182,8 +194,9 @@ async function loadVersionsForTask(taskName) {
         versionsList.innerHTML = "";
         versions.forEach((version) => {
             const listItem = document.createElement("li");
+            const requirementNote = version.user_requirement ? " | 含需求" : " | 无需求";
             listItem.textContent =
-                `v${String(version.version_no).padStart(4, "0")} | ${version.created_at} | ${version.mode}`;
+                `v${String(version.version_no).padStart(4, "0")} | ${version.created_at} | ${version.mode}${requirementNote}`;
             versionsList.appendChild(listItem);
 
             const option = document.createElement("option");
@@ -218,14 +231,18 @@ async function loadHistoryVersion() {
             throw new Error(data.error || "历史版本加载失败");
         }
 
+        const requirementText = data.user_requirement ? ` | 需求：${data.user_requirement}` : " | 未记录业务需求";
         compareSummaryCard.textContent =
             `${data.task_name} | 历史版本 v${String(data.version_no).padStart(4, "0")} | ` +
-            `${data.created_at} | ${data.mode}`;
+            `${data.created_at} | ${data.mode}${requirementText}`;
         historyMappingOutput.textContent = JSON.stringify(data.mapping, null, 2);
         historySqlOutput.textContent = data.sql;
 
         if (!compareMappingInput.value.trim()) {
             compareMappingInput.value = JSON.stringify(data.mapping, null, 2);
+        }
+        if (data.user_requirement && !compareRequirementInput.value.trim()) {
+            compareRequirementInput.value = data.user_requirement;
         }
     } catch (error) {
         compareSummaryCard.textContent = error.message || "历史版本加载失败";
@@ -256,7 +273,7 @@ async function compareWithCurrentMapping() {
                 task_name: taskName,
                 version_no: Number(versionNo),
                 mapping_text: raw,
-                ai_config: buildAiConfig()
+                ai_config: buildAiConfig(compareRequirementInput.value.trim())
             })
         });
         const data = await response.json();
@@ -264,9 +281,12 @@ async function compareWithCurrentMapping() {
             throw new Error(data.error || "对比失败");
         }
 
+        const currentRequirementText = data.current.user_requirement
+            ? ` | 当前需求：${data.current.user_requirement}`
+            : " | 当前未填写需求";
         compareSummaryCard.textContent =
             `${data.task_name} | 历史版本 v${String(data.historical.version_no).padStart(4, "0")} ` +
-            `vs 当前输入 Mapping`;
+            `vs 当前输入 Mapping${currentRequirementText}`;
         historyMappingOutput.textContent = JSON.stringify(data.historical.mapping, null, 2);
         historySqlOutput.textContent = data.historical.sql;
         currentCompareSqlOutput.textContent = data.current.sql;
@@ -281,11 +301,12 @@ async function compareWithCurrentMapping() {
     }
 }
 
-function buildAiConfig() {
+function buildAiConfig(userRequirement) {
     return {
         enabled: modeSelect.value === "deepseek",
         api_key: apiKeyInput.value.trim(),
-        model: modelInput.value.trim() || "deepseek-v4-flash"
+        model: modelInput.value.trim() || "deepseek-v4-flash",
+        user_requirement: userRequirement || ""
     };
 }
 
@@ -356,6 +377,20 @@ function updateVersionCard(versionRecord) {
         `${versionRecord.created_at} | ${versionRecord.task_name}`;
 }
 
+function updateRequirementCard(userRequirement) {
+    requirementCard.textContent = userRequirement
+        ? userRequirement
+        : "当前未使用需求增强。";
+}
+
+function updateRequirementVisibility() {
+    const isDeepSeek = modeSelect.value === "deepseek";
+    deepseekModelSection.classList.toggle("hidden", !isDeepSeek);
+    deepseekConfigSection.classList.toggle("hidden", !isDeepSeek);
+    requirementSection.classList.toggle("hidden", !isDeepSeek);
+    compareRequirementSection.classList.toggle("hidden", !isDeepSeek);
+}
+
 function setMessage(text, type) {
     formMessage.textContent = text;
     formMessage.className = `form-message ${type}`.trim();
@@ -371,6 +406,8 @@ function setLoadingState(isLoading) {
     excelInput.disabled = isLoading;
     rememberKeyCheckbox.disabled = isLoading;
     clearKeyBtn.disabled = isLoading;
+    requirementInput.disabled = isLoading;
+    compareRequirementInput.disabled = isLoading;
     generateBtn.textContent = isLoading ? "生成中..." : "生成 SQL";
 }
 
@@ -446,10 +483,12 @@ excelInput.addEventListener("change", (event) => parseExcelFile(event.target.fil
 rememberKeyCheckbox.addEventListener("change", persistApiKey);
 apiKeyInput.addEventListener("input", persistApiKey);
 clearKeyBtn.addEventListener("click", clearStoredApiKey);
+modeSelect.addEventListener("change", updateRequirementVisibility);
 builderModeBtn.addEventListener("click", () => switchMode("builder"));
 compareModeBtn.addEventListener("click", async () => {
     switchMode("compare");
     compareMappingInput.value = mappingInput.value.trim() || compareMappingInput.value;
+    compareRequirementInput.value = requirementInput.value.trim() || compareRequirementInput.value;
     await loadVersionTasks();
 });
 refreshTasksBtn.addEventListener("click", loadVersionTasks);
@@ -459,5 +498,6 @@ compareBtn.addEventListener("click", compareWithCurrentMapping);
 
 restoreApiKey();
 switchMode("builder");
+updateRequirementVisibility();
 loadExample();
 loadVersionTasks();

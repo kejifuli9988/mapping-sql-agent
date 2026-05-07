@@ -13,8 +13,8 @@
                 <p class="eyebrow">Data Platform Agent</p>
                 <h1>Mapping 文档一键生成 SQL</h1>
                 <p class="hero-text">
-                    面向频繁变更的数据开发场景。除了根据 Mapping 生成 SQL，
-                    现在也支持自动版本存储、版本查询和 SQL 差异对比。
+                    面向频繁变更的数据开发场景。规则模式直接根据 Mapping 生成 SQL，
+                    DeepSeek 增强模式会同时结合业务需求和 Mapping 生成更贴近真实开发语义的 SQL。
                 </p>
                 <div class="hero-actions">
                     <button id="loadExampleBtn" class="button button-secondary">加载示例 Mapping</button>
@@ -25,7 +25,7 @@
             <div class="hero-panel">
                 <div class="metric-card">
                     <span class="metric-label">核心能力</span>
-                    <strong>Mapping -> SQL -> Version</strong>
+                    <strong>Requirement + Mapping -> SQL</strong>
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">自动沉淀</span>
@@ -69,13 +69,16 @@
                             <option value="deepseek">DeepSeek 增强</option>
                         </select>
                     </label>
+                </div>
+
+                <div id="deepseekModelSection" class="config-grid hidden">
                     <label class="field">
                         <span>DeepSeek Model</span>
                         <input id="modelInput" type="text" value="deepseek-v4-flash" placeholder="deepseek-v4-flash">
                     </label>
                 </div>
 
-                <div class="key-row">
+                <div id="deepseekConfigSection" class="key-row hidden">
                     <label class="field key-field">
                         <span>DeepSeek API Key</span>
                         <input id="apiKeyInput" type="password" placeholder="sk-...">
@@ -85,6 +88,11 @@
                         <span>保存到浏览器本地缓存</span>
                     </label>
                     <button id="clearKeyBtn" class="button button-ghost button-small" type="button">清除缓存</button>
+                </div>
+
+                <div id="requirementSection" class="result-block hidden">
+                    <h3>业务需求</h3>
+                    <textarea id="requirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请在这里描述你的业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，并输出日汇总结果。"></textarea>
                 </div>
 
                 <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动修复格式问题。"></textarea>
@@ -105,6 +113,11 @@
                 <div class="result-block">
                     <h3>版本记录</h3>
                     <div id="versionCard" class="summary-card">当前还没有生成版本。</div>
+                </div>
+
+                <div class="result-block">
+                    <h3>需求说明</h3>
+                    <div id="requirementCard" class="summary-card">当前未使用需求增强。</div>
                 </div>
 
                 <div class="result-block">
@@ -145,7 +158,12 @@
                     <button id="refreshTasksBtn" class="button button-secondary" type="button">刷新版本列表</button>
                 </div>
 
-                <div class="compare-grid">
+                <div class="field compare-hint compare-hint-top">
+                    <span>对比说明</span>
+                    <div class="summary-card compact-card">左侧查看历史版本，右侧粘贴当前新 Mapping。若当前为 DeepSeek 增强模式，也会带上业务需求一起生成对比 SQL。</div>
+                </div>
+
+                <div class="compare-grid compare-grid-two">
                     <label class="field">
                         <span>任务</span>
                         <select id="taskSelect">
@@ -158,10 +176,6 @@
                             <option value="">请选择版本</option>
                         </select>
                     </label>
-                    <div class="field compare-hint">
-                        <span>对比说明</span>
-                        <div class="summary-card compact-card">左侧查看历史版本，右侧粘贴当前新 Mapping 执行对比。</div>
-                    </div>
                 </div>
 
                 <div class="hero-actions compact">
@@ -197,6 +211,11 @@
                     <summary>历史 Mapping</summary>
                     <pre id="historyMappingOutput" class="code-block subtle">请选择任务和版本后查看历史 Mapping。</pre>
                 </details>
+
+                <div id="compareRequirementSection" class="result-block hidden">
+                    <h3>当前业务需求</h3>
+                    <textarea id="compareRequirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请输入当前用于对比生成 SQL 的业务需求。"></textarea>
+                </div>
 
                 <div class="result-block">
                     <h3>当前待对比 Mapping</h3>

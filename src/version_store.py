@@ -19,6 +19,7 @@ class VersionRecord:
     sql: str
     style_issues: list[str]
     summary: str
+    user_requirement: str
 
 
 class VersionStore:
@@ -35,6 +36,7 @@ class VersionStore:
         mode: str,
         style_issues: list[str],
         summary: str,
+        user_requirement: str = "",
     ) -> dict[str, Any]:
         task_name = self._sanitize_name(mapping["task_name"])
         task_dir = self.base_dir / task_name
@@ -51,6 +53,7 @@ class VersionStore:
             sql=sql,
             style_issues=style_issues,
             summary=summary,
+            user_requirement=user_requirement,
         )
 
         file_path = task_dir / f"v{next_version:04d}.json"
@@ -149,6 +152,7 @@ class VersionStore:
             "sql": record.sql,
             "style_issues": record.style_issues,
             "summary": record.summary,
+            "user_requirement": record.user_requirement,
         }
 
     def _summary_payload(self, record: dict[str, Any]) -> dict[str, Any]:
@@ -159,6 +163,7 @@ class VersionStore:
             "created_at": record["created_at"],
             "mode": record["mode"],
             "summary": record["summary"],
+            "user_requirement": record.get("user_requirement", ""),
         }
 
     def _line_diff(self, left: str, right: str) -> list[dict[str, str]]:

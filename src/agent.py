@@ -30,7 +30,11 @@ class MappingSQLAgent:
 
     def run_mapping_with_ai(self, mapping: dict, ai_config: dict) -> dict:
         draft_sql = self.generator.generate(mapping)
-        messages = self.prompt_builder.build_sql_messages(mapping, draft_sql)
+        messages = self.prompt_builder.build_sql_messages(
+            mapping,
+            draft_sql,
+            ai_config.get("user_requirement", ""),
+        )
         client = DeepSeekClient(
             api_key=ai_config.get("api_key"),
             model=ai_config.get("model", "deepseek-v4-flash"),
