@@ -1,0 +1,48 @@
+{
+  "task_name": "dws_sales_summary_day",
+  "target_table": "dws_sales_summary_day",
+  "target_partition": "dt='${biz_date}'",
+  "sources": [
+    {
+      "name": "ods_order_detail_di",
+      "alias": "od"
+    },
+    {
+      "name": "dim_product_info_df",
+      "alias": "dp"
+    }
+  ],
+  "joins": [
+    {
+      "type": "left",
+      "right_alias": "dp",
+      "condition": "od.product_id = dp.product_id"
+    }
+  ],
+  "filters": [
+    "od.dt = '${biz_date}'",
+    "od.order_status = 'success'"
+  ],
+  "target_columns": [
+    {
+      "name": "dt",
+      "expression": "'${biz_date}'"
+    },
+    {
+      "name": "product_id",
+      "expression": "od.product_id"
+    },
+    {
+      "name": "product_name",
+      "expression": "dp.product_name"
+    },
+    {
+      "name": "sales_amt",
+      "expression": "SUM(od.pay_amt)"
+    },
+    {
+      "name": "order_cnt",
+      "expression": "COUNT(DISTINCT od.order_id)"
+    }
+  ]
+}

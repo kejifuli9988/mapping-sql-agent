@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapping SQL Agent</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+    <div class="page-shell">
+        <header class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">Data Platform Agent</p>
+                <h1>Mapping 文档一键生成 SQL</h1>
+                <p class="hero-text">
+                    面向频繁变更的数据开发场景。除了根据 Mapping 生成 SQL，
+                    现在也支持自动版本存储、版本查询和 SQL 差异对比。
+                </p>
+                <div class="hero-actions">
+                    <button id="loadExampleBtn" class="button button-secondary">加载示例 Mapping</button>
+                    <button id="downloadTemplateBtn" class="button button-secondary">下载 Excel 模板</button>
+                    <button id="generateBtn" class="button button-primary">生成 SQL</button>
+                </div>
+            </div>
+            <div class="hero-panel">
+                <div class="metric-card">
+                    <span class="metric-label">核心能力</span>
+                    <strong>Mapping -> SQL -> Version</strong>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">自动沉淀</span>
+                    <strong>版本化存储</strong>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">变更追踪</span>
+                    <strong>SQL 可视化对比</strong>
+                </div>
+            </div>
+        </header>
+
+        <div class="mode-switch">
+            <button id="builderModeBtn" class="mode-pill mode-pill-active" type="button">生成 SQL</button>
+            <button id="compareModeBtn" class="mode-pill" type="button">版本对比</button>
+        </div>
+
+        <main class="workspace workspace-builder" id="builderView">
+            <section class="panel panel-editor">
+                <div class="panel-header">
+                    <h2>Mapping 输入</h2>
+                    <span class="panel-tag">JSON / Excel</span>
+                </div>
+
+                <div class="upload-card">
+                    <div>
+                        <strong>上传 Excel Mapping</strong>
+                        <p>支持 `.xlsx` 文件，系统会解析成标准 Mapping JSON 并回填到编辑区。</p>
+                    </div>
+                    <label class="upload-button">
+                        <input id="excelInput" type="file" accept=".xlsx">
+                        <span>选择 Excel 文件</span>
+                    </label>
+                </div>
+
+                <div class="config-grid">
+                    <label class="field">
+                        <span>生成模式</span>
+                        <select id="modeSelect">
+                            <option value="rule">规则模式</option>
+                            <option value="deepseek">DeepSeek 增强</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>DeepSeek Model</span>
+                        <input id="modelInput" type="text" value="deepseek-v4-flash" placeholder="deepseek-v4-flash">
+                    </label>
+                </div>
+
+                <div class="key-row">
+                    <label class="field key-field">
+                        <span>DeepSeek API Key</span>
+                        <input id="apiKeyInput" type="password" placeholder="sk-...">
+                    </label>
+                    <label class="remember-toggle">
+                        <input id="rememberKeyCheckbox" type="checkbox">
+                        <span>保存到浏览器本地缓存</span>
+                    </label>
+                    <button id="clearKeyBtn" class="button button-ghost button-small" type="button">清除缓存</button>
+                </div>
+
+                <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动修复格式问题。"></textarea>
+                <p id="formMessage" class="form-message"></p>
+            </section>
+
+            <section class="panel panel-results">
+                <div class="panel-header">
+                    <h2>生成结果</h2>
+                    <button id="copySqlBtn" class="button button-ghost">复制 SQL</button>
+                </div>
+
+                <div class="result-block">
+                    <h3>任务摘要</h3>
+                    <div id="summaryCard" class="summary-card">等待生成</div>
+                </div>
+
+                <div class="result-block">
+                    <h3>版本记录</h3>
+                    <div id="versionCard" class="summary-card">当前还没有生成版本。</div>
+                </div>
+
+                <div class="result-block">
+                    <h3>Mapping 诊断</h3>
+                    <ul id="mappingDiagnosisList" class="issues-list">
+                        <li>等待诊断结果...</li>
+                    </ul>
+                </div>
+
+                <div class="result-block">
+                    <h3>SQL 代码</h3>
+                    <pre id="sqlOutput" class="code-block">等待生成 SQL...</pre>
+                </div>
+
+                <details class="fold-panel">
+                    <summary>修复后 Mapping</summary>
+                    <pre id="normalizedMappingOutput" class="code-block subtle">如果输入存在格式问题，AI 修复后的 Mapping 会展示在这里。</pre>
+                </details>
+
+                <details class="fold-panel">
+                    <summary>规则草稿 SQL</summary>
+                    <pre id="draftSqlOutput" class="code-block subtle">AI 模式下会展示规则引擎草稿，便于对比。</pre>
+                </details>
+
+                <div class="result-block">
+                    <h3>规范校验</h3>
+                    <ul id="issuesList" class="issues-list">
+                        <li>等待校验结果...</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <main class="workspace workspace-compare hidden" id="compareView">
+            <section class="panel panel-compare-controls">
+                <div class="panel-header">
+                    <h2>版本对比</h2>
+                    <button id="refreshTasksBtn" class="button button-secondary" type="button">刷新版本列表</button>
+                </div>
+
+                <div class="compare-grid">
+                    <label class="field">
+                        <span>任务</span>
+                        <select id="taskSelect">
+                            <option value="">请选择任务</option>
+                        </select>
+                    </label>
+                    <label class="field">
+                        <span>历史版本</span>
+                        <select id="historyVersionSelect">
+                            <option value="">请选择版本</option>
+                        </select>
+                    </label>
+                    <div class="field compare-hint">
+                        <span>对比说明</span>
+                        <div class="summary-card compact-card">左侧查看历史版本，右侧粘贴当前新 Mapping 执行对比。</div>
+                    </div>
+                </div>
+
+                <div class="hero-actions compact">
+                    <button id="loadHistoryBtn" class="button button-secondary" type="button">查看历史版本</button>
+                    <button id="compareBtn" class="button button-primary" type="button">历史版本 vs 当前 Mapping</button>
+                </div>
+
+                <div class="result-block">
+                    <h3>任务版本概览</h3>
+                    <ul id="versionsList" class="issues-list">
+                        <li>请选择任务后查看版本历史。</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="panel panel-compare-results">
+                <div class="panel-header">
+                    <h2>对比结果</h2>
+                    <span class="panel-tag">History vs Current</span>
+                </div>
+
+                <details class="fold-panel">
+                    <summary>历史版本说明</summary>
+                    <div id="compareSummaryCard" class="summary-card fold-card">等待对比</div>
+                </details>
+
+                <details class="fold-panel">
+                    <summary>历史版本</summary>
+                    <pre id="historySqlOutput" class="code-block subtle">请选择任务和版本后查看历史 SQL。</pre>
+                </details>
+
+                <details class="fold-panel">
+                    <summary>历史 Mapping</summary>
+                    <pre id="historyMappingOutput" class="code-block subtle">请选择任务和版本后查看历史 Mapping。</pre>
+                </details>
+
+                <div class="result-block">
+                    <h3>当前待对比 Mapping</h3>
+                    <textarea id="compareMappingInput" spellcheck="false" placeholder="请在这里粘贴新的 Mapping。系统会基于该 Mapping 生成新的 SQL，并与历史版本做对比。"></textarea>
+                </div>
+
+                <div class="result-block">
+                    <h3>当前生成 SQL</h3>
+                    <pre id="currentCompareSqlOutput" class="code-block">等待对比生成结果...</pre>
+                </div>
+
+                <div class="result-block">
+                    <h3>SQL 差异</h3>
+                    <pre id="sqlDiffOutput" class="diff-block">等待对比结果...</pre>
+                </div>
+
+                <details class="fold-panel">
+                    <summary>Mapping 差异</summary>
+                    <pre id="mappingDiffOutput" class="diff-block subtle">等待对比结果...</pre>
+                </details>
+            </section>
+        </main>
+    </div>
+
+    <script src="/assets/app.js"></script>
+</body>
+</html>
