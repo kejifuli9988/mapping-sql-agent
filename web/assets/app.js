@@ -90,7 +90,7 @@ async function parseExcelFile(file) {
         compareMappingInput.value = data.mapping_text;
         setMessage(data.message || "Excel Mapping 解析成功。", "ok");
     } catch (error) {
-        setMessage(error.message || "Excel 解析失败", "error");
+        setMessage(error.message || "Excel 解析失败。", "error");
     } finally {
         setExcelState(false);
         excelInput.value = "";
@@ -148,7 +148,7 @@ async function generateSql() {
     } catch (error) {
         summaryCard.textContent = "生成失败";
         versionCard.textContent = "当前还没有生成版本。";
-        requirementCard.textContent = "当前未使用需求增强。";
+        requirementCard.textContent = "当前未启用需求增强。";
         sqlOutput.textContent = "请检查 Mapping 内容后重试。";
         draftSqlOutput.textContent = "未生成草稿。";
         normalizedMappingOutput.textContent = "未生成修复后的 Mapping。";
@@ -380,7 +380,7 @@ function updateVersionCard(versionRecord) {
 function updateRequirementCard(userRequirement) {
     requirementCard.textContent = userRequirement
         ? userRequirement
-        : "当前未使用需求增强。";
+        : "当前未启用需求增强。";
 }
 
 function updateRequirementVisibility() {

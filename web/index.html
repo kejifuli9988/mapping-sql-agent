@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapping SQL Agent</title>
+    <title>银行数据开发平台</title>
     <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
     <div class="page-shell">
         <header class="hero">
             <div class="hero-copy">
-                <p class="eyebrow">Data Platform Agent</p>
+                <p class="eyebrow">Data Development Platform</p>
                 <h1>Mapping 文档一键生成 SQL</h1>
                 <p class="hero-text">
-                    面向频繁变更的数据开发场景。规则模式直接根据 Mapping 生成 SQL，
-                    DeepSeek 增强模式会同时结合业务需求和 Mapping 生成更贴近真实开发语义的 SQL。
+                    面向银行数据开发场景，支持基于 Mapping 自动生成符合规范的 SQL。
+                    规则模式适合标准化快速生成，DeepSeek 增强模式可结合业务需求与 Mapping，
+                    输出更贴近真实开发语义的 SQL，并自动沉淀版本记录与差异对比结果。
                 </p>
                 <div class="hero-actions">
                     <button id="loadExampleBtn" class="button button-secondary">加载示例 Mapping</button>
@@ -53,7 +54,7 @@
                 <div class="upload-card">
                     <div>
                         <strong>上传 Excel Mapping</strong>
-                        <p>支持 `.xlsx` 文件，系统会解析成标准 Mapping JSON 并回填到编辑区。</p>
+                        <p>支持 `.xlsx` 文件，系统会自动解析为标准 Mapping JSON 并回填到编辑区。</p>
                     </div>
                     <label class="upload-button">
                         <input id="excelInput" type="file" accept=".xlsx">
@@ -92,10 +93,10 @@
 
                 <div id="requirementSection" class="result-block hidden">
                     <h3>业务需求</h3>
-                    <textarea id="requirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请在这里描述你的业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，并输出日汇总结果。"></textarea>
+                    <textarea id="requirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，输出日汇总结果。"></textarea>
                 </div>
 
-                <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动修复格式问题。"></textarea>
+                <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动分析并修复格式问题。"></textarea>
                 <p id="formMessage" class="form-message"></p>
             </section>
 
@@ -117,7 +118,7 @@
 
                 <div class="result-block">
                     <h3>需求说明</h3>
-                    <div id="requirementCard" class="summary-card">当前未使用需求增强。</div>
+                    <div id="requirementCard" class="summary-card">当前未启用需求增强。</div>
                 </div>
 
                 <div class="result-block">
@@ -160,7 +161,10 @@
 
                 <div class="field compare-hint compare-hint-top">
                     <span>对比说明</span>
-                    <div class="summary-card compact-card">左侧查看历史版本，右侧粘贴当前新 Mapping。若当前为 DeepSeek 增强模式，也会带上业务需求一起生成对比 SQL。</div>
+                    <div class="summary-card compact-card">
+                        左侧查看历史版本，右侧粘贴当前新 Mapping。若当前为 DeepSeek 增强模式，
+                        系统会将业务需求一并带入，生成当前 SQL 后与历史版本做对比。
+                    </div>
                 </div>
 
                 <div class="compare-grid compare-grid-two">
@@ -214,12 +218,12 @@
 
                 <div id="compareRequirementSection" class="result-block hidden">
                     <h3>当前业务需求</h3>
-                    <textarea id="compareRequirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请输入当前用于对比生成 SQL 的业务需求。"></textarea>
+                    <textarea id="compareRequirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写当前用于对比生成 SQL 的业务需求。"></textarea>
                 </div>
 
                 <div class="result-block">
                     <h3>当前待对比 Mapping</h3>
-                    <textarea id="compareMappingInput" spellcheck="false" placeholder="请在这里粘贴新的 Mapping。系统会基于该 Mapping 生成新的 SQL，并与历史版本做对比。"></textarea>
+                    <textarea id="compareMappingInput" spellcheck="false" placeholder="请在这里粘贴新的 Mapping。系统会基于该 Mapping 生成新的 SQL，并与历史版本进行对比。"></textarea>
                 </div>
 
                 <div class="result-block">
