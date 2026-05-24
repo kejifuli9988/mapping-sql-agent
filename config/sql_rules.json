@@ -1,0 +1,26 @@
+{
+  "profile_name": "行内数据中台基础规范",
+  "required_keyword_blocks": [
+    "INSERT OVERWRITE TABLE",
+    "PARTITION",
+    "WITH",
+    "SELECT",
+    "FROM"
+  ],
+  "naming": {
+    "target_table_lowercase": true,
+    "source_alias_lowercase": true,
+    "target_field_alias_lowercase": true
+  },
+  "structure": {
+    "require_semicolon": true,
+    "forbid_main_select_star": true,
+    "require_group_by_for_aggregate": true
+  },
+  "field_validation": {
+    "require_all_target_columns_in_sql": true,
+    "forbid_duplicate_target_columns": true,
+    "validate_referenced_source_aliases": true,
+    "require_non_empty_expressions": true
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "skills": [
+    {
+      "id": "none",
+      "name": "无",
+      "description": "不额外注入特定业务模式，由模型基于 Mapping 和需求自行推导。",
+      "sql_pattern": "",
+      "examples": []
+    },
+    {
+      "id": "yoy_summary",
+      "name": "同比汇总",
+      "description": "适用于按上一周期同口径结果做同比计算，强调时间对齐与同比增幅字段。",
+      "sql_pattern": "LAG(metric_value, 1) OVER (PARTITION BY dimension ORDER BY stat_period)",
+      "examples": [
+        "补充上期指标字段、同比增幅字段",
+        "按月或按日口径与上一周期对齐"
+      ]
+    },
+    {
+      "id": "mom_summary",
+      "name": "环比汇总",
+      "description": "适用于连续周期指标的环比分析，强调当前周期与上一周期差值和变化率。",
+      "sql_pattern": "LAG(metric_value, 1) OVER (PARTITION BY dimension ORDER BY stat_period)",
+      "examples": [
+        "计算环比增长额、环比增长率",
+        "适合日、周、月级统计"
+      ]
+    },
+    {
+      "id": "product_aggregation",
+      "name": "产品维度汇总",
+      "description": "适用于按产品、产品层级或产品组合做销售、客户、收益等指标汇总。",
+      "sql_pattern": "GROUP BY product_id, product_name, product_category",
+      "examples": [
+        "按产品、产品分类聚合销售额和订单数",
+        "适合产品经营看板"
+      ]
+    },
+    {
+      "id": "user_segmentation",
+      "name": "用户分层",
+      "description": "适用于按客户标签、活跃度、资产等级、行为频次等做分层分析。",
+      "sql_pattern": "CASE WHEN metric >= threshold THEN segment END",
+      "examples": [
+        "高净值客户、活跃客户、新客/老客分层",
+        "适合客户运营与用户画像"
+      ]
+    },
+    {
+      "id": "kpi_metrics",
+      "name": "KPI统计",
+      "description": "适用于统一 KPI 口径的统计输出，强调指标字段命名、空值处理和统一分母。",
+      "sql_pattern": "SUM(metric) / NULLIF(SUM(base), 0)",
+      "examples": [
+        "转化率、渗透率、客单价等 KPI 指标",
+        "统一输出多项核心经营指标"
+      ]
+    }
+  ],
+  "memory_items": [
+    {
+      "title": "分区过滤优先",
+      "description": "事实表查询优先使用分区字段过滤，避免全表扫描。",
+      "hint": "在 WHERE 中尽量优先加入 dt、month_id 等分区条件。"
+    },
+    {
+      "title": "维度字段保持可分组",
+      "description": "非聚合字段通常需要在 GROUP BY 中保持一致，避免口径错误。",
+      "hint": "聚合 SQL 中请显式核对维度字段与 GROUP BY 对齐。"
+    },
+    {
+      "title": "复用稳定指标口径",
+      "description": "对于订单数、用户数、销售额等通用指标，优先复用既有统计方式。",
+      "hint": "例如订单数通常使用 COUNT(DISTINCT order_id)，用户数使用 COUNT(DISTINCT user_id)。"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ class MappingRepairService:
         client = DeepSeekClient(
             api_key=ai_config.get("api_key"),
             model=ai_config.get("model", "deepseek-v4-flash"),
+            base_url=ai_config.get("base_url", "https://api.deepseek.com"),
         )
         messages = self.prompt_builder.build_mapping_repair_messages(raw_mapping_text)
         content = client.generate_sql(messages)

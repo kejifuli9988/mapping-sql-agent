@@ -72,6 +72,16 @@ class ExcelMappingParser:
         }
         return self.loader.validate_mapping(mapping)
 
+    def extract_text(self, content: bytes) -> str:
+        workbook = self._load_workbook(content)
+        sections: list[str] = []
+        for sheet in workbook.values():
+            sections.append(f"[sheet] {sheet.name}")
+            for row in sheet.rows:
+                sections.append(" | ".join((cell or "").strip() for cell in row))
+            sections.append("")
+        return "\n".join(sections).strip()
+
     def _load_workbook(self, content: bytes) -> dict[str, ExcelSheet]:
         with ZipFile(BytesIO(content)) as zf:
             shared_strings = self._load_shared_strings(zf)

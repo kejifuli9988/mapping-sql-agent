@@ -3,15 +3,23 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from src.agent import MappingSQLAgent
+from src.business_memory import BusinessMemoryService
+from src.deepseek_config import DeepSeekConfigService
+from src.demo_samples import get_demo_samples
 from src.excel_mapping_parser import ExcelMappingParser
+from src.mapping_impact import MappingImpactAnalyzer
 from src.mapping_loader import MappingLoader
 from src.sample_excel_builder import SampleExcelBuilder
+from src.schema_sample_builder import SchemaSampleExcelBuilder
+from src.schema_insight import SchemaInsightService
+from src.sql_insight import SQLInsightService
 from src.version_store import VersionStore
 
 
@@ -26,7 +34,13 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
     loader = MappingLoader()
     excel_parser = ExcelMappingParser()
     sample_excel_builder = SampleExcelBuilder()
+    schema_sample_builder = SchemaSampleExcelBuilder()
     version_store = VersionStore(VERSIONS_DIR)
+    impact_analyzer = MappingImpactAnalyzer()
+    sql_insight = SQLInsightService()
+    business_memory = BusinessMemoryService()
+    schema_insight = SchemaInsightService()
+    deepseek_config = DeepSeekConfigService()
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -34,49 +48,72 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         if parsed.path == "/":
             self._serve_file(STATIC_DIR / "index.html", "text/html; charset=utf-8")
             return
-
         if parsed.path == "/api/example":
             example_mapping = json.loads(EXAMPLE_PATH.read_text(encoding="utf-8"))
             self._send_json({"mapping": example_mapping})
             return
-
+        if parsed.path == "/api/demo-samples":
+            self._send_json(get_demo_samples())
+            return
+        if parsed.path == "/api/skills":
+            self._send_json({"skills": self.business_memory.list_skills()})
+            return
+        if parsed.path == "/api/deepseek-config":
+            self._send_json(self.deepseek_config.get_public_status())
+            return
         if parsed.path == "/api/template.xlsx":
             self._serve_template()
             return
-
+        if parsed.path == "/api/schema-template.xlsx":
+            self._serve_schema_template()
+            return
         if parsed.path == "/api/version-tasks":
             self._send_json({"tasks": self.version_store.list_tasks()})
             return
-
         if parsed.path == "/api/versions":
             self._handle_versions_list(parsed.query)
             return
-
         if parsed.path == "/api/version-detail":
             self._handle_version_detail(parsed.query)
             return
-
         if parsed.path == "/api/compare":
             self._handle_compare(parsed.query)
             return
-
         if parsed.path.startswith("/assets/"):
-            asset_path = STATIC_DIR / parsed.path.lstrip("/")
-            self._serve_asset(asset_path)
+            self._serve_asset(STATIC_DIR / parsed.path.lstrip("/"))
             return
 
         self._send_json({"error": "Not found."}, status=HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+
         if parsed.path == "/api/generate":
             self._handle_generate()
+            return
+        if parsed.path == "/api/generate-stream":
+            self._handle_generate_stream()
             return
         if parsed.path == "/api/parse-excel":
             self._handle_parse_excel()
             return
+        if parsed.path == "/api/load-mapping-file":
+            self._handle_load_mapping_file()
+            return
         if parsed.path == "/api/compare-with-current":
             self._handle_compare_with_current()
+            return
+        if parsed.path == "/api/compare-with-current-stream":
+            self._handle_compare_with_current_stream()
+            return
+        if parsed.path == "/api/demo-compare-setup":
+            self._handle_demo_compare_setup()
+            return
+        if parsed.path == "/api/sql-insight":
+            self._handle_sql_insight()
+            return
+        if parsed.path == "/api/schema-insight":
+            self._handle_schema_insight()
             return
 
         self._send_json({"error": "Not found."}, status=HTTPStatus.NOT_FOUND)
@@ -87,29 +124,51 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
     def _handle_generate(self) -> None:
         try:
             body = self._read_json_body()
-            raw_mapping = body["mapping_text"]
-            ai_config = body.get("ai_config", {})
-            result = self._build_generation_result(raw_mapping, ai_config, save_version=True)
+            result = self._build_generation_result(
+                raw_mapping=body["mapping_text"],
+                ai_config=body.get("ai_config", {}),
+                save_version=True,
+            )
             self._send_json(result)
         except KeyError:
             self._send_json(
                 {"error": "Request body must include a 'mapping_text' field."},
                 status=HTTPStatus.BAD_REQUEST,
             )
-        except json.JSONDecodeError:
-            self._send_json(
-                {"error": "Request body is not valid JSON."},
-                status=HTTPStatus.BAD_REQUEST,
-            )
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _handle_generate_stream(self) -> None:
+        stream_started = False
+        try:
+            body = self._read_json_body()
+            self._start_sse()
+            stream_started = True
+            self._stream_steps(
+                [
+                    "Step 1: 解析 Mapping 结构",
+                    "Step 2: 识别来源表与目标字段",
+                    "Step 3: 推导 Join 与过滤条件",
+                    "Step 4: 注入 Skill / Memory 业务逻辑",
+                    "Step 5: 输出 SQL 与校验结果",
+                ]
+            )
+            result = self._build_generation_result(
+                raw_mapping=body["mapping_text"],
+                ai_config=body.get("ai_config", {}),
+                save_version=True,
+            )
+            self._write_sse_event("result", result)
+            self._write_sse_event("done", {"ok": True})
+            self.close_connection = True
+        except Exception as exc:  # noqa: BLE001
+            self._safe_sse_error(exc, stream_started)
 
     def _handle_parse_excel(self) -> None:
         try:
             body = self._read_json_body()
             filename = body.get("filename", "mapping.xlsx")
-            file_base64 = body["file_base64"]
-            content = base64.b64decode(file_base64)
+            content = base64.b64decode(body["file_base64"])
             mapping = self.excel_parser.parse(content)
             self._send_json(
                 {
@@ -127,9 +186,50 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
+    def _handle_load_mapping_file(self) -> None:
+        try:
+            body = self._read_json_body()
+            filename = body.get("filename", "")
+            mode = body.get("mode", "rule")
+            if not filename:
+                raise ValueError("filename is required.")
+
+            content = base64.b64decode(body["file_base64"])
+            lower_name = filename.lower()
+
+            if lower_name.endswith(".xlsx"):
+                if mode == "deepseek":
+                    mapping_text = self.excel_parser.extract_text(content)
+                    message = "已加载 Excel Mapping 原始内容，DeepSeek 可在生成前自动理解并修复格式。"
+                else:
+                    mapping = self.excel_parser.parse(content)
+                    mapping_text = json.dumps(mapping, ensure_ascii=False, indent=2)
+                    message = "Excel Mapping 已解析为标准 Mapping JSON 并回填到编辑区。"
+            elif lower_name.endswith((".csv", ".md", ".markdown", ".json", ".txt")):
+                mapping_text = content.decode("utf-8", errors="ignore").strip()
+                if not mapping_text:
+                    raise ValueError("上传文件内容为空。")
+                message = "文件内容已加载到编辑区，DeepSeek 会结合内容自动分析 Mapping 结构。"
+            else:
+                raise ValueError("当前仅支持 .xlsx、.csv、.md、.markdown、.json、.txt 文件。")
+
+            self._send_json(
+                {
+                    "filename": filename,
+                    "mapping_text": mapping_text,
+                    "message": message,
+                }
+            )
+        except KeyError:
+            self._send_json(
+                {"error": "Request body must include filename and file_base64."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
     def _handle_versions_list(self, query: str) -> None:
-        params = parse_qs(query)
-        task_name = params.get("task_name", [""])[0]
+        task_name = parse_qs(query).get("task_name", [""])[0]
         if not task_name:
             self._send_json({"error": "task_name is required."}, status=HTTPStatus.BAD_REQUEST)
             return
@@ -142,8 +242,7 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             version_no = int(params.get("version_no", ["0"])[0])
             if not task_name or not version_no:
                 raise ValueError("task_name and version_no are required.")
-            detail = self.version_store.get_version(task_name, version_no)
-            self._send_json(detail)
+            self._send_json(self.version_store.get_version(task_name, version_no))
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
@@ -155,58 +254,134 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             right = int(params.get("right", ["0"])[0])
             if not task_name or not left or not right:
                 raise ValueError("task_name, left, and right are required.")
-            result = self.version_store.compare_versions(task_name, left, right)
-            self._send_json(result)
+            self._send_json(self.version_store.compare_versions(task_name, left, right))
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
     def _handle_compare_with_current(self) -> None:
         try:
             body = self._read_json_body()
-            task_name = body["task_name"]
-            version_no = int(body["version_no"])
-            raw_mapping = body["mapping_text"]
-            ai_config = body.get("ai_config", {})
-
-            historical = self.version_store.get_version(task_name, version_no)
-            current_result = self._build_generation_result(raw_mapping, ai_config, save_version=False)
-
-            compare_payload = {
-                "task_name": task_name,
-                "historical": {
-                    "version_no": historical["version_no"],
-                    "created_at": historical["created_at"],
-                    "mode": historical["mode"],
-                    "summary": historical["summary"],
-                    "mapping": historical["mapping"],
-                    "sql": historical["sql"],
-                    "user_requirement": historical.get("user_requirement", ""),
-                },
-                "current": {
-                    "summary": current_result["summary"],
-                    "mapping": current_result["normalized_mapping"],
-                    "sql": current_result["sql"],
-                    "mode": current_result.get("mode", "rule"),
-                    "mapping_diagnosis": current_result["mapping_diagnosis"],
-                    "mapping_repaired": current_result["mapping_repaired"],
-                    "user_requirement": ai_config.get("user_requirement", ""),
-                },
-                "sql_diff": self.version_store._line_diff(historical["sql"], current_result["sql"]),
-                "mapping_diff": self.version_store._line_diff(
-                    json.dumps(historical["mapping"], ensure_ascii=False, indent=2),
-                    json.dumps(current_result["normalized_mapping"], ensure_ascii=False, indent=2),
-                ),
-            }
+            compare_payload = self._build_compare_payload(
+                task_name=body["task_name"],
+                version_no=int(body["version_no"]),
+                raw_mapping=body["mapping_text"],
+                ai_config=body.get("ai_config", {}),
+            )
             self._send_json(compare_payload)
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
-    def _build_generation_result(
-        self,
-        raw_mapping: str,
-        ai_config: dict,
-        save_version: bool,
-    ) -> dict:
+    def _handle_compare_with_current_stream(self) -> None:
+        stream_started = False
+        try:
+            body = self._read_json_body()
+            self._start_sse()
+            stream_started = True
+            self._stream_steps(
+                [
+                    "Step 1: 读取历史版本与当前 Mapping",
+                    "Step 2: 解析当前来源表、字段与过滤条件",
+                    "Step 3: 注入 Skill / Memory 逻辑并生成 SQL",
+                    "Step 4: 分析 Mapping 变化与 SQL 影响",
+                    "Step 5: 输出对比结果",
+                ]
+            )
+            compare_payload = self._build_compare_payload(
+                task_name=body["task_name"],
+                version_no=int(body["version_no"]),
+                raw_mapping=body["mapping_text"],
+                ai_config=body.get("ai_config", {}),
+            )
+            self._write_sse_event("result", compare_payload)
+            self._write_sse_event("done", {"ok": True})
+            self.close_connection = True
+        except Exception as exc:  # noqa: BLE001
+            self._safe_sse_error(exc, stream_started)
+
+    def _handle_demo_compare_setup(self) -> None:
+        try:
+            samples = get_demo_samples()
+            compare_sample = samples["compare"]
+            task_name = compare_sample["task_name"]
+            existing_versions = self.version_store.list_versions(task_name)
+
+            if len(existing_versions) < 2:
+                for version in compare_sample["history_versions"]:
+                    result = self.agent.run_mapping(version["mapping"])
+                    self.version_store.save(
+                        mapping=version["mapping"],
+                        sql=result["sql"],
+                        mode=version["mode"],
+                        style_issues=result["style_issues"],
+                        summary=result["summary"],
+                        user_requirement=version["user_requirement"],
+                    )
+                existing_versions = self.version_store.list_versions(task_name)
+
+            self._send_json(
+                {
+                    "task_name": task_name,
+                    "versions": existing_versions,
+                    "selected_version_no": 2 if len(existing_versions) >= 2 else 1,
+                    "current": {
+                        "mode": compare_sample["current"]["mode"],
+                        "skill_id": compare_sample["current"].get("skill_id", "none"),
+                        "requirement": compare_sample["current"]["requirement"],
+                        "mapping": compare_sample["current"]["mapping"],
+                    },
+                    "description": compare_sample["description"],
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _handle_sql_insight(self) -> None:
+        try:
+            body = self._read_json_body()
+            ai_config = self._resolve_ai_config(body.get("ai_config", {}))
+            result = self.sql_insight.analyze(body["sql_text"], ai_config)
+            result["sql_diff"] = self.version_store._line_diff(
+                result["original_sql"],
+                result["optimized_sql"],
+            )
+            self._send_json(result)
+        except KeyError:
+            self._send_json(
+                {"error": "Request body must include a 'sql_text' field."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _handle_schema_insight(self) -> None:
+        try:
+            body = self._read_json_body()
+            ai_config = self._resolve_ai_config(body.get("ai_config", {}))
+            filename = body.get("filename", "")
+            if body.get("file_base64"):
+                content = base64.b64decode(body["file_base64"])
+                if filename.lower().endswith(".xlsx"):
+                    result = self.schema_insight.analyze_excel(content, ai_config)
+                else:
+                    schema_text = content.decode("utf-8", errors="ignore")
+                    input_format = self._detect_schema_format(schema_text, filename)
+                    result = self.schema_insight.analyze_text(schema_text, input_format, ai_config)
+            else:
+                schema_text = body["schema_text"]
+                input_format = self._detect_schema_format(schema_text, filename)
+                result = self.schema_insight.analyze_text(schema_text, input_format, ai_config)
+            result["recommended_skills"] = self.business_memory.recommend_skills_from_schema(result)
+            self._send_json(result)
+        except KeyError:
+            self._send_json(
+                {"error": "Request body must include 'schema_text' or 'file_base64'."},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _build_generation_result(self, raw_mapping: str, ai_config: dict, save_version: bool) -> dict:
+        ai_config = self._resolve_ai_config(ai_config)
         use_ai = bool(ai_config.get("enabled"))
         mapping_diagnosis: list[str] = []
         mapping_repaired = False
@@ -218,7 +393,6 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                 raise ValueError(
                     f"Mapping parse failed: {parse_exc}. Rule mode requires valid JSON input."
                 ) from parse_exc
-
             repair_result = self.agent.repair_mapping_text(raw_mapping, ai_config)
             mapping = repair_result["mapping"]
             mapping_diagnosis = repair_result["diagnosis"]
@@ -239,6 +413,17 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         result["normalized_mapping"] = mapping
         result["mapping_diagnosis"] = mapping_diagnosis
         result["mapping_repaired"] = mapping_repaired
+        result["requested_ai_enabled"] = use_ai
+        result["selected_skill"] = ai_config.get("skill_id", "none")
+        memory_enabled = bool(ai_config.get("include_memory")) and ai_config.get("skill_id", "none") != "none"
+        result["memory_enabled"] = memory_enabled
+        memory_context = self.business_memory.build_prompt_context(
+            skill_id=ai_config.get("skill_id", "none"),
+            include_memory=memory_enabled,
+        )
+        result["selected_skill_detail"] = memory_context["selected_skill"] or self.business_memory.get_skill("none")
+        result["memory_items_used"] = memory_context["memory_items"]
+        result["schema_analysis_used"] = ai_config.get("schema_analysis") if ai_config.get("use_schema_assist") else None
 
         if save_version:
             version_record = self.version_store.save(
@@ -257,6 +442,81 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             result["user_requirement"] = ai_config.get("user_requirement", "")
 
         return result
+
+    def _resolve_ai_config(self, ai_config: dict | None) -> dict:
+        config = dict(ai_config or {})
+        if not config.get("enabled"):
+            return config
+        runtime = self.deepseek_config.load_runtime_config()
+        config["api_key"] = runtime["api_key"]
+        config["model"] = runtime["model"]
+        config["base_url"] = runtime["base_url"]
+        config["config_loaded_from_server"] = True
+        config["config_status"] = self.deepseek_config.get_public_status()
+        return config
+
+    def _build_compare_payload(
+        self,
+        task_name: str,
+        version_no: int,
+        raw_mapping: str,
+        ai_config: dict,
+    ) -> dict:
+        historical = self.version_store.get_version(task_name, version_no)
+        current_result = self._build_generation_result(raw_mapping, ai_config, save_version=False)
+        return {
+            "task_name": task_name,
+            "historical": {
+                "version_no": historical["version_no"],
+                "created_at": historical["created_at"],
+                "mode": historical["mode"],
+                "summary": historical["summary"],
+                "mapping": historical["mapping"],
+                "sql": historical["sql"],
+                "user_requirement": historical.get("user_requirement", ""),
+            },
+            "current": {
+                "summary": current_result["summary"],
+                "mapping": current_result["normalized_mapping"],
+                "sql": current_result["sql"],
+                "mode": current_result.get("mode", "rule"),
+                "mapping_diagnosis": current_result["mapping_diagnosis"],
+                "mapping_repaired": current_result["mapping_repaired"],
+                "requested_ai_enabled": current_result["requested_ai_enabled"],
+                "fallback_used": current_result["fallback_used"],
+                "style_issues": current_result["style_issues"],
+                "field_checks": current_result["field_checks"],
+                "user_requirement": ai_config.get("user_requirement", ""),
+                "selected_skill": current_result["selected_skill"],
+                "selected_skill_detail": current_result["selected_skill_detail"],
+                "memory_enabled": current_result["memory_enabled"],
+                "memory_items_used": current_result["memory_items_used"],
+            },
+            "mapping_impacts": self.impact_analyzer.analyze(
+                historical["mapping"],
+                current_result["normalized_mapping"],
+            ),
+            "sql_diff": self.version_store._line_diff(historical["sql"], current_result["sql"]),
+            "mapping_diff": self.version_store._line_diff(
+                json.dumps(historical["mapping"], ensure_ascii=False, indent=2),
+                json.dumps(current_result["normalized_mapping"], ensure_ascii=False, indent=2),
+            ),
+        }
+
+    def _detect_schema_format(self, schema_text: str, filename: str = "") -> str:
+        lower_name = filename.lower()
+        lowered = schema_text.lower().strip()
+        if lower_name.endswith(".xlsx"):
+            return "excel"
+        if lower_name.endswith(".csv"):
+            return "csv"
+        if lower_name.endswith(".json") or lowered.startswith("{") or lowered.startswith("["):
+            return "json"
+        if lower_name.endswith(".sql") or "create table" in lowered:
+            return "ddl"
+        if "," in schema_text and "\n" in schema_text:
+            return "csv"
+        return "text"
 
     def _read_json_body(self) -> dict:
         content_length = int(self.headers.get("Content-Length", "0"))
@@ -278,6 +538,21 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(content)
 
+    def _serve_schema_template(self) -> None:
+        content = self.schema_sample_builder.build()
+        self.send_response(HTTPStatus.OK)
+        self.send_header(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.send_header(
+            "Content-Disposition",
+            'attachment; filename="schema_sample.xlsx"',
+        )
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
     def _serve_asset(self, path: Path) -> None:
         if not path.exists() or not path.is_file():
             self._send_json({"error": "Asset not found."}, status=HTTPStatus.NOT_FOUND)
@@ -288,7 +563,6 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             content_type = "text/css; charset=utf-8"
         elif path.suffix == ".js":
             content_type = "application/javascript; charset=utf-8"
-
         self._serve_file(path, content_type)
 
     def _serve_file(self, path: Path, content_type: str) -> None:
@@ -310,6 +584,33 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)
+
+    def _start_sse(self) -> None:
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+
+    def _write_sse_event(self, event_type: str, payload: dict) -> None:
+        body = json.dumps({"type": event_type, "payload": payload}, ensure_ascii=False)
+        self.wfile.write(f"data: {body}\n\n".encode("utf-8"))
+        self.wfile.flush()
+
+    def _stream_steps(self, steps: list[str]) -> None:
+        for item in steps:
+            self._write_sse_event("step", {"message": item})
+            time.sleep(0.08)
+
+    def _safe_sse_error(self, exc: Exception, stream_started: bool) -> None:
+        try:
+            if not stream_started:
+                self._start_sse()
+            self._write_sse_event("error", {"message": str(exc)})
+            self.close_connection = True
+        except Exception:  # noqa: BLE001
+            pass
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the Mapping SQL web application.")
