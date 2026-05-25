@@ -150,10 +150,47 @@ class PromptBuilder:
             {"role": "user", "content": user_content},
         ]
 
-    def build_sql_analysis_messages(self, sql_text: str) -> list[dict]:
+    def build_sql_analysis_messages(
+        self,
+        sql_text: str,
+        selected_skill: dict | None = None,
+        memory_items: list[dict] | None = None,
+        schema_context: dict | None = None,
+    ) -> list[dict]:
         system_content = "\n".join(self.SQL_ANALYSIS_RULES)
+        skill_section = ""
+        if selected_skill and selected_skill.get("id") != "none":
+            skill_section = (
+                "[selected_skill]\n"
+                f"name: {selected_skill.get('name', '')}\n"
+                f"description: {selected_skill.get('description', '')}\n"
+                f"sql_pattern: {selected_skill.get('sql_pattern', '')}\n"
+                f"examples: {json.dumps(selected_skill.get('examples', []), ensure_ascii=False)}\n\n"
+            )
+        memory_section = ""
+        if memory_items:
+            memory_section = "[business_memory]\n"
+            for item in memory_items:
+                memory_section += (
+                    f"- title: {item.get('title', '')}; "
+                    f"description: {item.get('description', '')}; "
+                    f"hint: {item.get('hint', '')}\n"
+                )
+            memory_section += "\n"
+        schema_section = ""
+        if schema_context:
+            schema_section = (
+                "[schema_analysis]\n"
+                f"table_purpose: {schema_context.get('table_purpose', '')}\n"
+                f"key_fields: {json.dumps(schema_context.get('key_fields', {}), ensure_ascii=False)}\n"
+                f"reuse_suggestions: {json.dumps(schema_context.get('reuse_suggestions', []), ensure_ascii=False)}\n"
+                f"recommended_skills: {json.dumps([item.get('name', '') for item in schema_context.get('recommended_skills', [])], ensure_ascii=False)}\n\n"
+            )
         user_content = (
-            "请分析并优化下面这段 SQL，并严格按要求返回中文 JSON。\n\n"
+            "请结合可选的 Skill、业务记忆和表结构分析上下文，分析并优化下面这段 SQL，并严格按要求返回中文 JSON。\n\n"
+            f"{skill_section}"
+            f"{memory_section}"
+            f"{schema_section}"
             "[sql]\n"
             f"{sql_text}"
         )

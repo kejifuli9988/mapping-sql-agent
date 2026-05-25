@@ -41,7 +41,12 @@ class SQLInsightService:
             model=ai_config.get("model", "deepseek-v4-flash"),
             base_url=ai_config.get("base_url", "https://api.deepseek.com"),
         )
-        messages = self.prompt_builder.build_sql_analysis_messages(sql_text)
+        messages = self.prompt_builder.build_sql_analysis_messages(
+            sql_text,
+            selected_skill=ai_config.get("selected_skill_detail"),
+            memory_items=ai_config.get("memory_items", []),
+            schema_context=ai_config.get("schema_analysis") if ai_config.get("use_schema_assist") else None,
+        )
         content = client.generate_text(messages)
 
         try:

@@ -401,6 +401,14 @@ h1 {
     align-items: start;
 }
 
+.insight-enhancement-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    margin: 12px 12px 0;
+}
+
 .mapping-skill-row:has(.skill-card:not(.hidden)) {
     grid-template-columns: minmax(390px, 1.35fr) minmax(460px, 0.85fr);
     align-items: start;
@@ -1001,11 +1009,45 @@ select:focus {
     margin-bottom: 0;
 }
 
+#insightSchemaAssistSection {
+    margin: 8px 12px 10px;
+}
+
+#insightSchemaAssistSection .schema-assist-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+}
+
+#insightSchemaAssistSection .compact-upload {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
+#insightSchemaAssistSection .schema-file-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#insightSchemaAssistSection .upload-button,
+#insightSchemaAssistSection .button {
+    width: 100%;
+    min-height: 44px;
+}
+
+#insightSchemaAssistSection .schema-assist-editor textarea {
+    min-height: 116px;
+    height: 132px;
+}
+
 #requirementSection {
     margin-top: 0;
 }
 
 #builderSchemaMessage {
+    min-height: 0;
+    margin: 0;
+}
+
+#insightSchemaMessage {
     min-height: 0;
     margin: 0;
 }
@@ -1131,7 +1173,8 @@ select:focus {
 
     .mode-switch,
     .result-grid,
-    .panel-editor .upload-card {
+    .panel-editor .upload-card,
+    #insightSchemaAssistSection .schema-file-actions {
         grid-template-columns: 1fr;
     }
 

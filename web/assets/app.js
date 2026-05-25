@@ -71,6 +71,15 @@ const sqlInsightInput = document.getElementById("sqlInsightInput");
 const sqlInsightFileInput = document.getElementById("sqlInsightFileInput");
 const analyzeSqlBtn = document.getElementById("analyzeSqlBtn");
 const sqlInsightMessage = document.getElementById("sqlInsightMessage");
+const insightSkillSelect = document.getElementById("insightSkillSelect");
+const insightSchemaAssistCheckbox = document.getElementById("insightSchemaAssistCheckbox");
+const insightSchemaAssistSection = document.getElementById("insightSchemaAssistSection");
+const insightSchemaFileInput = document.getElementById("insightSchemaFileInput");
+const analyzeInsightSchemaBtn = document.getElementById("analyzeInsightSchemaBtn");
+const insightSchemaInput = document.getElementById("insightSchemaInput");
+const insightSchemaMessage = document.getElementById("insightSchemaMessage");
+const insightAiContextCard = document.getElementById("insightAiContextCard");
+const insightSchemaAssistCard = document.getElementById("insightSchemaAssistCard");
 const sqlPurposeList = document.getElementById("sqlPurposeList");
 const sqlStructureCard = document.getElementById("sqlStructureCard");
 const sqlSuggestionList = document.getElementById("sqlSuggestionList");
@@ -125,6 +134,8 @@ let activeWorkspace = "builder";
 let schemaUploadState = null;
 let builderSchemaUploadState = null;
 let builderSchemaAnalysisCache = null;
+let insightSchemaUploadState = null;
+let insightSchemaAnalysisCache = null;
 let deepseekConfigStatus = null;
 
 const RULE_MODE_UPLOAD_CONFIG = {
@@ -177,6 +188,7 @@ async function loadSkills() {
     skillsCache = data.skills || [];
     populateSkillSelect(builderSkillSelect);
     populateSkillSelect(compareSkillSelect);
+    populateSkillSelect(insightSkillSelect);
 }
 
 async function loadDeepSeekConfigStatus() {
@@ -230,8 +242,15 @@ async function loadDemoByCurrentMode() {
     }
     if (activeWorkspace === "insight") {
         sqlInsightInput.value = SQL_INSIGHT_SAMPLE;
+        insightSchemaUploadState = null;
+        insightSchemaAnalysisCache = null;
+        insightSkillSelect.value = skillsCache.some((item) => item.id === "product_aggregation") ? "product_aggregation" : "none";
+        insightSchemaAssistCheckbox.checked = true;
+        insightSchemaInput.value = SCHEMA_SAMPLE;
         resetSqlInsightOutputs();
-        setSqlInsightMessage("SQL 分析样例已加载，可直接点击“分析并优化 SQL”。", "ok");
+        updateEnhancementVisibility();
+        syncInsightPreviewState();
+        setSqlInsightMessage("SQL 分析样例、Skill 和表结构样例已加载，可直接点击“分析并优化 SQL”。", "ok");
         return;
     }
     schemaUploadState = null;
@@ -574,12 +593,20 @@ async function analyzeSqlInsight() {
     setSqlInsightMessage("正在分析 SQL 语义并生成优化建议...", "");
 
     try {
+        const aiConfig = buildAiConfig("insight");
+        if (insightSchemaAssistCheckbox.checked) {
+            await ensureInsightSchemaAnalysis();
+            if (insightSchemaAnalysisCache) {
+                aiConfig.use_schema_assist = true;
+                aiConfig.schema_analysis = insightSchemaAnalysisCache;
+            }
+        }
         const response = await fetch("/api/sql-insight", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 sql_text: raw,
-                ai_config: buildAiConfig("insight"),
+                ai_config: aiConfig,
             }),
         });
         const data = await response.json();
@@ -591,6 +618,19 @@ async function analyzeSqlInsight() {
         renderIssues(sqlSuggestionList, data.optimization_suggestions || ["未返回优化建议。"]);
         optimizedSqlOutput.textContent = data.optimized_sql || raw;
         renderDiff(optimizedSqlDiffOutput, data.sql_diff || []);
+        insightAiContextCard.textContent = formatAiContextCard(
+            data.selected_skill_detail,
+            data.memory_items_used || [],
+            data.memory_enabled,
+            data.requested_ai_enabled,
+            data.fallback_used
+        );
+        insightSchemaAssistCard.textContent = formatSchemaAssistCard(
+            insightSchemaAssistCheckbox,
+            data.schema_analysis_used || insightSchemaAnalysisCache,
+            Boolean(data.schema_analysis_used),
+            "优化"
+        );
         if (data.fallback_used) {
             setSqlInsightMessage(`DeepSeek 调用失败，已回退为规则分析：${data.fallback_reason}`, "error");
         } else {
@@ -715,6 +755,100 @@ async function loadBuilderSchemaFile(file) {
     builderSchemaAnalysisCache = null;
     setBuilderSchemaMessage(`已加载表结构文件：${file.name}`, "ok");
     builderSchemaFileInput.value = "";
+}
+
+async function ensureInsightSchemaAnalysis() {
+    if (!insightSchemaAssistCheckbox.checked) {
+        insightSchemaAnalysisCache = null;
+        return;
+    }
+    const hasInput = insightSchemaUploadState || insightSchemaInput.value.trim();
+    if (!hasInput) {
+        insightSchemaAssistCard.textContent = "已启用生成前表结构分析，但当前未提供表结构内容。";
+        return;
+    }
+    if (insightSchemaAnalysisCache) {
+        return;
+    }
+    await analyzeInsightSchema(true);
+}
+
+async function analyzeInsightSchema(silent = false) {
+    if (!insightSchemaUploadState && !insightSchemaInput.value.trim()) {
+        if (!silent) {
+            setInsightSchemaMessage("请先输入或上传表结构内容。", "error");
+        }
+        return;
+    }
+
+    analyzeInsightSchemaBtn.disabled = true;
+    if (!silent) {
+        analyzeInsightSchemaBtn.textContent = "分析中...";
+        setInsightSchemaMessage("正在分析表结构并推荐更适合的 Skill...", "");
+    }
+
+    try {
+        const payload = insightSchemaUploadState
+            ? {
+                filename: insightSchemaUploadState.filename,
+                file_base64: insightSchemaUploadState.fileBase64,
+                ai_config: buildAiConfig("insight-schema"),
+            }
+            : {
+                filename: "",
+                schema_text: insightSchemaInput.value.trim(),
+                ai_config: buildAiConfig("insight-schema"),
+            };
+        const response = await fetch("/api/schema-insight", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "表结构分析失败");
+        }
+        insightSchemaAnalysisCache = data;
+        insightSchemaAssistCard.textContent = formatSchemaAssistCard(insightSchemaAssistCheckbox, data, false, "优化");
+        if ((insightSkillSelect.value || "none") === "none" && (data.recommended_skills || []).length > 0) {
+            insightSkillSelect.value = data.recommended_skills[0].id;
+            syncInsightPreviewState();
+        }
+        if (!silent) {
+            setInsightSchemaMessage("表结构分析完成，已可用于增强 SQL 拆解优化。", "ok");
+        }
+    } catch (error) {
+        insightSchemaAnalysisCache = null;
+        insightSchemaAssistCard.textContent = error.message || "表结构分析失败。";
+        if (!silent) {
+            setInsightSchemaMessage(error.message || "表结构分析失败。", "error");
+        }
+    } finally {
+        analyzeInsightSchemaBtn.disabled = false;
+        analyzeInsightSchemaBtn.textContent = "分析后辅助优化";
+    }
+}
+
+async function loadInsightSchemaFile(file) {
+    if (!file) {
+        return;
+    }
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith(".xlsx")) {
+        const buffer = await file.arrayBuffer();
+        insightSchemaUploadState = {
+            filename: file.name,
+            fileBase64: arrayBufferToBase64(buffer),
+        };
+        insightSchemaInput.value = `已上传表结构文件：${file.name}\n点击“分析后辅助优化”后将由后端解析并推荐 Skill。`;
+    } else {
+        insightSchemaUploadState = null;
+        insightSchemaInput.value = await file.text();
+    }
+    insightSchemaAnalysisCache = null;
+    setInsightSchemaMessage(`已加载表结构文件：${file.name}`, "ok");
+    insightSchemaFileInput.value = "";
+    syncInsightPreviewState();
 }
 
 async function analyzeSchema() {
@@ -853,11 +987,14 @@ function buildAiConfig(scope) {
         scope === "builder" ? requirementInput.value.trim()
         : scope === "compare" ? compareRequirementInput.value.trim()
         : "";
-    const skillId = scope === "compare" ? compareSkillSelect.value : builderSkillSelect.value;
+    const skillId =
+        scope === "compare" ? compareSkillSelect.value
+        : scope === "insight" || scope === "insight-schema" ? insightSkillSelect.value
+        : builderSkillSelect.value;
     const normalizedSkillId = skillId || "none";
     const includeMemory = normalizedSkillId !== "none";
     return {
-        enabled: getCurrentGenerationMode() === "deepseek",
+        enabled: scope === "insight" || scope === "insight-schema" || getCurrentGenerationMode() === "deepseek",
         user_requirement: requirement,
         skill_id: normalizedSkillId,
         include_memory: includeMemory,
@@ -933,29 +1070,21 @@ function formatAiContextCard(skillDetail, memoryItems, memoryEnabled, aiEnabled,
     const skillDesc = skillDetail && skillDetail.description
         ? skillDetail.description
         : "当前未注入特定业务模式。";
-    const modeHint = fallbackUsed
-        ? "本次已选择 DeepSeek 增强，但调用失败，SQL 已回退为规则生成。"
-        : "本次按 DeepSeek 增强模式生成 SQL。";
+    const fallbackHint = fallbackUsed ? "DeepSeek 调用失败，已回退为规则生成。\n" : "";
     if (!memoryEnabled) {
-        return `${modeHint}\n${formatDeepSeekConfigHint()}\nSkill：${skillName}\n说明：${skillDesc}\nMemory：未注入（当前未选择 Skill）`;
+        return `${fallbackHint}Skill：${skillName}\n说明：${skillDesc}\nMemory：未注入（当前未选择 Skill）`;
     }
     const memoryTitles = (memoryItems || []).map((item) => item.title).filter(Boolean);
     const memoryText = memoryTitles.length > 0 ? memoryTitles.join("、") : "已随 Skill 自动注入，但当前没有可展示条目";
-    return `${modeHint}\n${formatDeepSeekConfigHint()}\nSkill：${skillName}\n说明：${skillDesc}\nMemory：已随 Skill 自动注入\n记忆条目：${memoryText}`;
-}
-
-function formatDeepSeekConfigHint() {
-    if (!deepseekConfigStatus) {
-        return "DeepSeek 配置：正在从服务端本地 JSON 加载。";
-    }
-    if (!deepseekConfigStatus.configured) {
-        return `DeepSeek 配置：${deepseekConfigStatus.message}`;
-    }
-    return `DeepSeek 配置：已通过 API 加载服务端本地 JSON（模型：${deepseekConfigStatus.model}）。`;
+    return `${fallbackHint}Skill：${skillName}\n说明：${skillDesc}\nMemory：已随 Skill 自动注入\n记忆条目：${memoryText}`;
 }
 
 function formatBuilderSchemaAssistCard(schemaAnalysis, usedInGeneration) {
-    if (!builderSchemaAssistCheckbox.checked) {
+    return formatSchemaAssistCard(builderSchemaAssistCheckbox, schemaAnalysis, usedInGeneration, "生成");
+}
+
+function formatSchemaAssistCard(checkbox, schemaAnalysis, usedInGeneration, actionName) {
+    if (!checkbox.checked) {
         return "当前未启用生成前表结构分析。";
     }
     if (!schemaAnalysis) {
@@ -964,8 +1093,8 @@ function formatBuilderSchemaAssistCard(schemaAnalysis, usedInGeneration) {
     const recommendedSkills = (schemaAnalysis.recommended_skills || []).map((item) => item.name).join("、") || "暂无明确推荐";
     const suggestions = (schemaAnalysis.reuse_suggestions || []).join("；") || "暂无可复用建议";
     const usageHint = usedInGeneration
-        ? "本次 SQL 已使用表结构分析结果增强生成。"
-        : "当前表结构分析结果已保留，可继续用于增强 SQL 生成。";
+        ? `本次 SQL 已使用表结构分析结果增强${actionName}。`
+        : `当前表结构分析结果已保留，可继续用于增强 SQL ${actionName}。`;
     return `${usageHint}\n表用途：${schemaAnalysis.table_purpose || "未识别"}\n推荐 Skill：${recommendedSkills}\n可复用场景：${suggestions}`;
 }
 
@@ -1053,16 +1182,38 @@ function syncComparePreviewState() {
     compareAiContextCard.textContent = "当前为规则模式，未启用 Skill / Memory 增强。";
 }
 
+function syncInsightPreviewState() {
+    const selectedSkill = skillsCache.find((item) => item.id === (insightSkillSelect.value || "none")) || null;
+    const memoryPreviewItems = insightSkillSelect.value !== "none"
+        ? [{ title: "待分析后展示具体条目" }]
+        : [];
+    insightAiContextCard.textContent = formatAiContextCard(
+        selectedSkill,
+        memoryPreviewItems,
+        insightSkillSelect.value !== "none",
+        true,
+        false
+    );
+    insightSchemaAssistCard.textContent = formatSchemaAssistCard(
+        insightSchemaAssistCheckbox,
+        insightSchemaAnalysisCache,
+        false,
+        "优化"
+    );
+}
+
 function updateEnhancementVisibility() {
     const isDeepSeek = getCurrentGenerationMode() === "deepseek";
     updateBuilderUploadUI();
     builderEnhancementSection.classList.toggle("hidden", !isDeepSeek);
     builderSchemaAssistSection.classList.toggle("hidden", !isDeepSeek || !builderSchemaAssistCheckbox.checked);
+    insightSchemaAssistSection.classList.toggle("hidden", !insightSchemaAssistCheckbox.checked);
     requirementSection.classList.toggle("hidden", !isDeepSeek);
     compareRequirementSection.classList.toggle("hidden", activeWorkspace !== "compare" || !isDeepSeek);
     compareEnhancementSection.classList.toggle("hidden", activeWorkspace !== "compare" || !isDeepSeek);
     syncBuilderPreviewState();
     syncComparePreviewState();
+    syncInsightPreviewState();
 }
 
 function updateDemoButtonLabel() {
@@ -1105,6 +1256,11 @@ function setBuilderSchemaMessage(text, type) {
     builderSchemaMessage.className = `form-message ${type}`.trim();
 }
 
+function setInsightSchemaMessage(text, type) {
+    insightSchemaMessage.textContent = text;
+    insightSchemaMessage.className = `form-message ${type}`.trim();
+}
+
 function setLoadingState(isLoading) {
     generateBtn.disabled = isLoading;
     loadDemoBtn.disabled = isLoading;
@@ -1127,6 +1283,11 @@ function setLoadingState(isLoading) {
     compareBtn.disabled = isLoading;
     analyzeSqlBtn.disabled = isLoading;
     sqlInsightFileInput.disabled = isLoading;
+    insightSkillSelect.disabled = isLoading;
+    insightSchemaAssistCheckbox.disabled = isLoading;
+    insightSchemaFileInput.disabled = isLoading;
+    analyzeInsightSchemaBtn.disabled = isLoading;
+    insightSchemaInput.disabled = isLoading;
     analyzeSchemaBtn.disabled = isLoading;
     downloadSchemaTemplateBtn.disabled = isLoading;
     schemaFileInput.disabled = isLoading;
@@ -1154,11 +1315,14 @@ function resetBuilderOutputs() {
 
 function resetSqlInsightOutputs() {
     setSqlInsightMessage("", "");
+    setInsightSchemaMessage("", "");
     renderIssues(sqlPurposeList, ["等待分析结果..."]);
     sqlStructureCard.textContent = "等待分析结果...";
     renderIssues(sqlSuggestionList, ["等待优化建议..."]);
     optimizedSqlOutput.textContent = "等待分析结果...";
     optimizedSqlDiffOutput.textContent = "等待分析结果...";
+    insightAiContextCard.textContent = "等待选择 Skill 或执行分析。";
+    insightSchemaAssistCard.textContent = "当前未启用生成前表结构分析。";
 }
 
 function resetSchemaOutputs() {
@@ -1278,6 +1442,20 @@ builderSchemaInput.addEventListener("input", () => {
 requirementInput.addEventListener("input", syncBuilderPreviewState);
 compareSkillSelect.addEventListener("change", syncComparePreviewState);
 compareRequirementInput.addEventListener("input", syncComparePreviewState);
+insightSkillSelect.addEventListener("change", syncInsightPreviewState);
+insightSchemaAssistCheckbox.addEventListener("change", () => {
+    if (!insightSchemaAssistCheckbox.checked) {
+        insightSchemaAnalysisCache = null;
+    }
+    updateEnhancementVisibility();
+});
+insightSchemaFileInput.addEventListener("change", (event) => loadInsightSchemaFile(event.target.files[0]));
+analyzeInsightSchemaBtn.addEventListener("click", () => analyzeInsightSchema(false));
+insightSchemaInput.addEventListener("input", () => {
+    insightSchemaUploadState = null;
+    insightSchemaAnalysisCache = null;
+    syncInsightPreviewState();
+});
 builderModeBtn.addEventListener("click", () => switchMode("builder"));
 compareModeBtn.addEventListener("click", async () => {
     switchMode("compare");

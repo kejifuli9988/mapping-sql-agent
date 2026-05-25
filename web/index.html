@@ -395,6 +395,45 @@
                         </label>
                     </div>
 
+                    <div class="insight-enhancement-row">
+                        <div id="insightEnhancementSection" class="result-block skill-card">
+                            <label class="field">
+                                <span>Skill 选择器</span>
+                                <select id="insightSkillSelect">
+                                    <option value="none">无</option>
+                                </select>
+                            </label>
+                            <label class="remember-toggle memory-toggle compare-memory-toggle enhancement-toggle-single">
+                                <input id="insightSchemaAssistCheckbox" type="checkbox">
+                                <span>生成前分析表结构</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="insightSchemaAssistSection" class="result-block hidden">
+                        <div class="schema-assist-grid">
+                            <div class="schema-assist-controls">
+                                <div class="upload-card compact-upload">
+                                    <div>
+                                        <strong>上传表结构文件</strong>
+                                        <p>支持 `.xlsx`、`.csv`、`.json`、`.sql`、`.txt`。</p>
+                                    </div>
+                                    <div class="schema-file-actions">
+                                        <label class="upload-button">
+                                            <input id="insightSchemaFileInput" type="file" accept=".xlsx,.csv,.json,.sql,.txt,text/plain,application/json">
+                                            <span>选择表结构文件</span>
+                                        </label>
+                                        <button id="analyzeInsightSchemaBtn" class="button button-secondary" type="button">分析后辅助优化</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="schema-assist-editor">
+                                <textarea id="insightSchemaInput" spellcheck="false" placeholder="可选：粘贴待分析 SQL 涉及的表结构，系统会先识别字段、表用途和推荐 Skill，再辅助 SQL 拆解优化。"></textarea>
+                                <p id="insightSchemaMessage" class="form-message"></p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="deepseek-toggle-row insight-actions">
                         <button id="analyzeSqlBtn" class="button button-primary" type="button">分析并优化 SQL</button>
                     </div>
@@ -412,24 +451,34 @@
                         <span class="panel-tag">DeepSeek Insight</span>
                     </div>
 
-                    <div class="result-grid">
-                        <div class="result-block">
-                            <h3>SQL 作用分析</h3>
-                            <ul id="sqlPurposeList" class="issues-list">
-                                <li>等待分析结果...</li>
-                            </ul>
-                        </div>
-                        <div class="result-block">
-                            <h3>优化建议</h3>
-                            <ul id="sqlSuggestionList" class="issues-list">
-                                <li>等待优化建议...</li>
-                            </ul>
-                        </div>
+                    <div class="result-block">
+                        <h3>SQL 作用分析</h3>
+                        <ul id="sqlPurposeList" class="issues-list">
+                            <li>等待分析结果...</li>
+                        </ul>
                     </div>
 
                     <div class="result-block">
                         <h3>SQL 结构拆解</h3>
                         <div id="sqlStructureCard" class="summary-card">等待分析结果...</div>
+                    </div>
+
+                    <div class="result-grid">
+                        <div class="result-block">
+                            <h3>增强上下文</h3>
+                            <div id="insightAiContextCard" class="summary-card">等待选择 Skill 或执行分析。</div>
+                        </div>
+                        <div class="result-block">
+                            <h3>表结构增强</h3>
+                            <div id="insightSchemaAssistCard" class="summary-card">当前未启用生成前表结构分析。</div>
+                        </div>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>优化建议</h3>
+                        <ul id="sqlSuggestionList" class="issues-list">
+                            <li>等待优化建议...</li>
+                        </ul>
                     </div>
 
                     <div class="result-block">

@@ -339,11 +339,24 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         try:
             body = self._read_json_body()
             ai_config = self._resolve_ai_config(body.get("ai_config", {}))
+            memory_enabled = bool(ai_config.get("include_memory")) and ai_config.get("skill_id", "none") != "none"
+            memory_context = self.business_memory.build_prompt_context(
+                skill_id=ai_config.get("skill_id", "none"),
+                include_memory=memory_enabled,
+            )
+            ai_config["selected_skill_detail"] = memory_context["selected_skill"] or self.business_memory.get_skill("none")
+            ai_config["memory_items"] = memory_context["memory_items"]
             result = self.sql_insight.analyze(body["sql_text"], ai_config)
             result["sql_diff"] = self.version_store._line_diff(
                 result["original_sql"],
                 result["optimized_sql"],
             )
+            result["requested_ai_enabled"] = bool(ai_config.get("enabled"))
+            result["selected_skill"] = ai_config.get("skill_id", "none")
+            result["selected_skill_detail"] = ai_config["selected_skill_detail"]
+            result["memory_enabled"] = memory_enabled
+            result["memory_items_used"] = memory_context["memory_items"]
+            result["schema_analysis_used"] = ai_config.get("schema_analysis") if ai_config.get("use_schema_assist") else None
             self._send_json(result)
         except KeyError:
             self._send_json(
