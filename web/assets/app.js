@@ -19,6 +19,7 @@ const inlineDownloadTemplateBtn = document.getElementById("inlineDownloadTemplat
 const generateBtn = document.getElementById("generateBtn");
 const copySqlBtn = document.getElementById("copySqlBtn");
 const copyCompareSqlBtn = document.getElementById("copyCompareSqlBtn");
+const copyOptimizedSqlBtn = document.getElementById("copyOptimizedSqlBtn");
 const modeSelect = document.getElementById("modeSelect");
 const builderModeSegment = document.getElementById("builderModeSegment");
 const builderModeSegmentButtons = Array.from(document.querySelectorAll("[data-mode-value]"));
@@ -251,8 +252,8 @@ async function loadBuilderDemo(type) {
     compareRequirementInput.value = sample.requirement || "";
     builderSchemaUploadState = null;
     builderSchemaAnalysisCache = null;
-    builderSchemaAssistCheckbox.checked = false;
-    builderSchemaInput.value = "";
+    builderSchemaAssistCheckbox.checked = type === "deepseek";
+    builderSchemaInput.value = type === "deepseek" ? SCHEMA_SAMPLE : "";
     setBuilderSchemaMessage("", "");
     resetBuilderOutputs();
     updateEnhancementVisibility();
@@ -1113,7 +1114,9 @@ function setLoadingState(isLoading) {
     builderSkillSelect.disabled = isLoading;
     builderSchemaAssistCheckbox.disabled = isLoading;
     builderSchemaFileInput.disabled = isLoading;
-    downloadBuilderSchemaTemplateBtn.disabled = isLoading;
+    if (downloadBuilderSchemaTemplateBtn) {
+        downloadBuilderSchemaTemplateBtn.disabled = isLoading;
+    }
     analyzeBuilderSchemaBtn.disabled = isLoading;
     builderSchemaInput.disabled = isLoading;
     requirementInput.disabled = isLoading;
@@ -1191,7 +1194,15 @@ function switchMode(mode) {
     updateDemoButtonLabel();
 }
 
-async function copySqlFromOutput(outputElement, emptyMessages) {
+function flashCopiedButton(button) {
+    const originalText = button.textContent;
+    button.textContent = "已复制";
+    window.setTimeout(() => {
+        button.textContent = originalText;
+    }, 1400);
+}
+
+async function copySqlFromOutput(outputElement, emptyMessages, button) {
     const content = outputElement.textContent.trim();
     if (!content || emptyMessages.includes(content)) {
         setMessage("当前没有可复制的 SQL。", "error");
@@ -1199,6 +1210,9 @@ async function copySqlFromOutput(outputElement, emptyMessages) {
     }
     try {
         await navigator.clipboard.writeText(content);
+        if (button) {
+            flashCopiedButton(button);
+        }
         setMessage("SQL 已复制到剪贴板。", "ok");
     } catch {
         setMessage("复制失败，请手动复制。", "error");
@@ -1215,7 +1229,7 @@ loadDemoBtn.addEventListener("click", async () => {
 inlineDownloadTemplateBtn.addEventListener("click", () => {
     window.location.href = "/api/template.xlsx";
 });
-downloadBuilderSchemaTemplateBtn.addEventListener("click", () => {
+downloadBuilderSchemaTemplateBtn?.addEventListener("click", () => {
     window.location.href = "/api/schema-template.xlsx";
 });
 downloadSchemaTemplateBtn.addEventListener("click", () => {
@@ -1225,12 +1239,16 @@ generateBtn.addEventListener("click", generateSql);
 copySqlBtn.addEventListener("click", () => copySqlFromOutput(sqlOutput, [
     "等待生成 SQL...",
     "请检查 Mapping 内容后重试。",
-]));
+], copySqlBtn));
 copyCompareSqlBtn.addEventListener("click", () => copySqlFromOutput(currentCompareSqlOutput, [
     "等待对比生成结果...",
     "等待点击对比按钮生成当前 SQL...",
     "没有可展示的当前 SQL。",
-]));
+], copyCompareSqlBtn));
+copyOptimizedSqlBtn.addEventListener("click", () => copySqlFromOutput(optimizedSqlOutput, [
+    "等待分析结果...",
+    "没有可展示的优化 SQL。",
+], copyOptimizedSqlBtn));
 excelInput.addEventListener("change", (event) => parseMappingFile(event.target.files[0]));
 modeSelect.addEventListener("change", updateEnhancementVisibility);
 modeSelect.addEventListener("change", updateDemoButtonLabel);

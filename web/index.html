@@ -7,433 +7,512 @@
     <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-    <div class="page-shell">
-        <header class="hero">
-            <div class="hero-copy">
-                <p class="eyebrow">Data Development Platform</p>
-                <h1>面向数仓研发的 SQL 智能开发工具</h1>
-                <p class="hero-text">
-                    支持 Mapping 生成 SQL、版本对比、SQL 拆解优化、表结构分析，并在 DeepSeek 增强模式下复用业务记忆与 Skill 模板。
-                </p>
-                <div class="top-toolbar hero-toolbar">
-                    <div class="mode-switch">
-                        <button id="builderModeBtn" class="mode-pill mode-pill-active" type="button">SQL生成</button>
-                        <button id="compareModeBtn" class="mode-pill" type="button">版本对比</button>
-                        <button id="insightModeBtn" class="mode-pill" type="button">SQL拆解 + 优化</button>
-                        <button id="schemaModeBtn" class="mode-pill" type="button">表结构分析</button>
-                    </div>
-                    <div class="top-toolbar-actions">
-                        <button id="loadDemoBtn" class="button button-secondary top-demo-button" type="button">加载样例</button>
-                    </div>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <div class="brand-block">
+                <span class="brand-mark">SQL</span>
+                <div>
+                    <p class="eyebrow">Mapping SQL Agent</p>
+                    <h1>面向数仓研发的 SQL 生成、评审与优化工作台</h1>
                 </div>
             </div>
-            <div class="hero-panel">
+
+            <div class="sidebar-intro">
+                <p>在同一个界面完成 Mapping 输入、SQL 生成、版本追踪、SQL 拆解优化和表结构分析。</p>
+            </div>
+
+            <nav class="mode-switch" aria-label="工作区导航">
+                <button id="builderModeBtn" class="mode-pill mode-pill-active" type="button">
+                    <span>01</span>
+                    SQL 生成
+                </button>
+                <button id="compareModeBtn" class="mode-pill" type="button">
+                    <span>02</span>
+                    版本对比
+                </button>
+                <button id="insightModeBtn" class="mode-pill" type="button">
+                    <span>03</span>
+                    SQL 拆解优化
+                </button>
+                <button id="schemaModeBtn" class="mode-pill" type="button">
+                    <span>04</span>
+                    表结构分析
+                </button>
+            </nav>
+
+            <div class="sidebar-demo">
+                <button id="loadDemoBtn" class="button button-secondary top-demo-button" type="button">加载样例</button>
+            </div>
+
+            <div class="sidebar-metrics">
                 <div class="metric-card">
                     <span class="metric-label">生成链路</span>
-                    <strong>Requirement + Mapping + Skill -> SQL</strong>
+                    <strong>Requirement + Mapping + Skill</strong>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">增强能力</span>
-                    <strong>版本追踪 + SQL 优化 + Schema 洞察</strong>
+                    <span class="metric-label">质量闭环</span>
+                    <strong>生成、诊断、校验、对比</strong>
                 </div>
                 <div class="metric-card">
-                    <span class="metric-label">研发复用</span>
-                    <strong>Business Memory / Skill Pattern</strong>
+                    <span class="metric-label">增强模式</span>
+                    <strong>DeepSeek + Memory + Schema</strong>
                 </div>
             </div>
-        </header>
+        </aside>
 
-        <main class="workspace workspace-builder" id="builderView">
-            <section class="panel panel-editor">
-                <div class="panel-header">
-                    <h2>Mapping 输入</h2>
-                    <span class="panel-tag">JSON / Excel</span>
-                </div>
-
-                <div class="config-grid builder-mode-row">
-                    <label class="field">
-                        <span>生成模式</span>
-                        <select id="modeSelect" class="visually-hidden" aria-hidden="true" tabindex="-1">
-                            <option value="rule">规则模式</option>
-                            <option value="deepseek">DeepSeek 增强</option>
-                        </select>
-                        <div class="segmented-control" id="builderModeSegment" role="tablist" aria-label="生成模式">
-                            <button class="segment-button segment-button-active" type="button" data-mode-value="rule">规则模式</button>
-                            <button class="segment-button" type="button" data-mode-value="deepseek">DeepSeek增强</button>
+        <div class="app-main">
+            <main class="workspace workspace-builder" id="builderView">
+                <section class="panel panel-control">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Setup</span>
+                            <h2>生成模式</h2>
                         </div>
-                    </label>
-                    <div class="field mode-action-field">
-                        <span>&nbsp;</span>
+                    </div>
+
+                    <div class="control-stack">
+                        <div class="setup-mode-row">
+                        <label class="field setup-mode-field">
+                            <span class="visually-hidden">生成模式</span>
+                            <select id="modeSelect" class="visually-hidden" aria-hidden="true" tabindex="-1">
+                                <option value="rule">规则模式</option>
+                                <option value="deepseek">DeepSeek 增强</option>
+                            </select>
+                            <div class="segmented-control" id="builderModeSegment" role="tablist" aria-label="生成模式">
+                                <button class="segment-button segment-button-active" type="button" data-mode-value="rule">规则模式</button>
+                                <button class="segment-button" type="button" data-mode-value="deepseek">DeepSeek 增强</button>
+                            </div>
+                        </label>
                         <button id="generateBtn" class="button button-primary mode-generate-button" type="button">生成 SQL</button>
-                    </div>
-                </div>
+                        </div>
 
-                <div class="upload-card builder-mapping-upload-card">
-                    <div class="upload-copy">
-                        <strong id="mappingUploadTitle">上传 Excel Mapping</strong>
-                        <p id="mappingUploadDescription">支持 `.xlsx`，系统会自动解析为标准 Mapping JSON 并回填到编辑区。</p>
-                    </div>
-                    <div class="upload-card-actions">
-                        <button id="inlineDownloadTemplateBtn" class="button button-ghost" type="button">下载 Excel 模板</button>
-                        <div class="upload-file-stack">
-                            <label class="upload-button">
-                                <input id="excelInput" type="file" accept=".xlsx">
-                                <span id="mappingUploadButtonText">选择 Excel 文件</span>
-                            </label>
-                            <span id="mappingUploadHint" class="upload-hint">未选择任何文件</span>
+                        <div class="mapping-skill-row">
+                            <div class="upload-card builder-mapping-upload-card">
+                                <div class="upload-copy">
+                                    <strong id="mappingUploadTitle">上传 Excel Mapping</strong>
+                                    <p id="mappingUploadDescription">支持 `.xlsx`，系统会自动解析为标准 Mapping JSON 并回填到编辑区。</p>
+                                </div>
+                                <div class="upload-card-actions">
+                                    <button id="inlineDownloadTemplateBtn" class="button button-ghost" type="button">下载 Excel 模板</button>
+                                    <div class="upload-file-stack">
+                                        <label class="upload-button">
+                                            <input id="excelInput" type="file" accept=".xlsx">
+                                            <span id="mappingUploadButtonText">选择 Excel 文件</span>
+                                        </label>
+                                        <span id="mappingUploadHint" class="upload-hint">未选择任何文件</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="builderEnhancementSection" class="result-block skill-card hidden">
+                                <label class="field">
+                                    <span>Skill 选择器</span>
+                                    <select id="builderSkillSelect">
+                                        <option value="none">无</option>
+                                    </select>
+                                </label>
+                                <label class="remember-toggle memory-toggle compare-memory-toggle enhancement-toggle-single">
+                                    <input id="builderSchemaAssistCheckbox" type="checkbox">
+                                    <span>生成前分析表结构</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="builderSchemaAssistSection" class="result-block hidden">
+                            <div class="schema-assist-grid">
+                                <div class="schema-assist-controls">
+                                    <div class="upload-card compact-upload">
+                                        <div>
+                                            <strong>上传表结构文件</strong>
+                                            <p>支持 `.xlsx`、`.csv`、`.json`、`.sql`、`.txt`。</p>
+                                        </div>
+                                        <div class="schema-file-actions">
+                                            <label class="upload-button">
+                                                <input id="builderSchemaFileInput" type="file" accept=".xlsx,.csv,.json,.sql,.txt,text/plain,application/json">
+                                                <span>选择表结构文件</span>
+                                            </label>
+                                            <button id="analyzeBuilderSchemaBtn" class="button button-secondary" type="button">分析后辅助生成</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="schema-assist-editor">
+                                    <textarea id="builderSchemaInput" spellcheck="false" placeholder="可选：先粘贴 DDL / CREATE TABLE SQL / JSON / CSV 内容，系统会分析表结构并推荐更适合的 Skill。"></textarea>
+                                    <p id="builderSchemaMessage" class="form-message"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="requirementSection" class="result-block hidden">
+                            <h3>业务需求</h3>
+                            <textarea id="requirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，输出日汇总结果。"></textarea>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <div id="builderEnhancementSection" class="result-block hidden">
-                    <div class="config-grid">
+                <section class="panel panel-editor">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Input</span>
+                            <h2>Mapping 编辑器</h2>
+                        </div>
+                    </div>
+                    <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动分析并修复格式问题。"></textarea>
+                    <p id="formMessage" class="form-message"></p>
+                </section>
+
+                <section class="panel panel-results">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Output</span>
+                            <h2>生成结果</h2>
+                        </div>
+                        <button id="copySqlBtn" class="button button-ghost" type="button">复制 SQL</button>
+                    </div>
+
+                    <div class="result-block result-block-primary">
+                        <h3>SQL 代码</h3>
+                        <pre id="sqlOutput" class="code-block generated-sql-block">等待生成 SQL...</pre>
+                    </div>
+                </section>
+
+                <section class="panel panel-assist">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Review</span>
+                            <h2>辅助信息</h2>
+                        </div>
+                    </div>
+                    <div class="result-grid">
+                        <div class="result-block">
+                            <h3>任务摘要</h3>
+                            <div id="summaryCard" class="summary-card">等待生成</div>
+                        </div>
+                        <div class="result-block">
+                            <h3>版本记录</h3>
+                            <div id="versionCard" class="summary-card">当前还没有生成版本。</div>
+                        </div>
+                    </div>
+
+                    <details class="fold-panel" open>
+                        <summary>上下文与诊断</summary>
+                        <div class="fold-content">
+                            <div class="result-block">
+                                <h3>需求说明</h3>
+                                <div id="requirementCard" class="summary-card">当前未启用需求增强。</div>
+                            </div>
+                            <div class="result-block">
+                                <h3>增强上下文</h3>
+                                <div id="builderAiContextCard" class="summary-card">当前为规则模式，未启用 Skill / Memory 增强。</div>
+                            </div>
+                            <div class="result-block">
+                                <h3>表结构增强</h3>
+                                <div id="builderSchemaAssistCard" class="summary-card">当前未启用生成前表结构分析。</div>
+                            </div>
+                            <div class="result-block">
+                                <h3>Mapping 诊断</h3>
+                                <ul id="mappingDiagnosisList" class="issues-list">
+                                    <li>等待诊断结果...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="fold-panel">
+                        <summary>规则与校验</summary>
+                        <div class="fold-content">
+                            <div class="result-block">
+                                <h3>规则配置</h3>
+                                <ul id="ruleProfileList" class="issues-list">
+                                    <li>等待加载规范规则...</li>
+                                </ul>
+                            </div>
+                            <div class="result-block">
+                                <h3>规范校验</h3>
+                                <ul id="issuesList" class="issues-list">
+                                    <li>等待校验结果...</li>
+                                </ul>
+                            </div>
+                            <div class="result-block">
+                                <h3>字段覆盖 / 合法性</h3>
+                                <ul id="fieldChecksList" class="issues-list">
+                                    <li>等待字段检查结果...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </details>
+
+                    <details class="fold-panel">
+                        <summary>修复后 Mapping</summary>
+                        <pre id="normalizedMappingOutput" class="code-block subtle">如果输入存在格式问题，AI 修复后的 Mapping 会展示在这里。</pre>
+                    </details>
+
+                    <details class="fold-panel">
+                        <summary>规则草稿 SQL</summary>
+                        <pre id="draftSqlOutput" class="code-block subtle">AI 模式下会展示规则引擎草稿，便于对比。</pre>
+                    </details>
+                </section>
+            </main>
+
+            <main class="workspace workspace-compare hidden" id="compareView">
+                <section class="panel panel-compare-controls">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">History</span>
+                            <h2>历史版本</h2>
+                        </div>
+                        <button id="refreshTasksBtn" class="button button-secondary" type="button">刷新版本列表</button>
+                    </div>
+
+                    <p class="plain-note">
+                        左侧查看历史版本，右侧维护当前 Mapping、需求与 Skill。系统会基于当前输入重新生成 SQL，并与历史版本做对比。
+                    </p>
+
+                    <div class="compare-grid compare-grid-two">
                         <label class="field">
-                            <span>Skill 选择器（选择后会自动注入对应逻辑）</span>
-                            <select id="builderSkillSelect">
-                                <option value="none">无</option>
+                            <span>任务</span>
+                            <select id="taskSelect">
+                                <option value="">请选择任务</option>
                             </select>
                         </label>
-                        <label class="remember-toggle memory-toggle compare-memory-toggle enhancement-toggle-single">
-                            <input id="builderSchemaAssistCheckbox" type="checkbox">
-                            <span>生成前分析表结构</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div id="builderSchemaAssistSection" class="result-block hidden">
-                    <div class="upload-card">
-                        <div>
-                            <strong>上传表结构文件</strong>
-                            <p>支持 `.xlsx`、`.csv`、`.json`、`.sql`、`.txt`，先分析表结构再辅助生成 SQL。</p>
-                        </div>
-                        <label class="upload-button">
-                            <input id="builderSchemaFileInput" type="file" accept=".xlsx,.csv,.json,.sql,.txt,text/plain,application/json">
-                            <span>选择表结构文件</span>
-                        </label>
-                    </div>
-
-                    <div class="deepseek-toggle-row insight-actions schema-action-row">
-                        <button id="downloadBuilderSchemaTemplateBtn" class="button button-ghost" type="button">下载表结构样例</button>
-                        <button id="analyzeBuilderSchemaBtn" class="button button-secondary" type="button">分析后辅助生成</button>
-                    </div>
-
-                    <textarea id="builderSchemaInput" spellcheck="false" placeholder="可选：先粘贴 DDL / CREATE TABLE SQL / JSON / CSV 内容，系统会分析表结构并推荐更适合的 Skill。"></textarea>
-                    <p id="builderSchemaMessage" class="form-message"></p>
-                </div>
-
-                <div id="requirementSection" class="result-block hidden">
-                    <h3>业务需求</h3>
-                    <textarea id="requirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，输出日汇总结果。"></textarea>
-                </div>
-
-                <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动分析并修复格式问题。"></textarea>
-                <p id="formMessage" class="form-message"></p>
-            </section>
-
-            <section class="panel panel-results">
-                <div class="panel-header">
-                    <h2>生成结果</h2>
-                    <button id="copySqlBtn" class="button button-ghost" type="button">复制 SQL</button>
-                </div>
-
-                <div class="result-block">
-                    <h3>任务摘要</h3>
-                    <div id="summaryCard" class="summary-card">等待生成</div>
-                </div>
-
-                <div class="result-block">
-                    <h3>版本记录</h3>
-                    <div id="versionCard" class="summary-card">当前还没有生成版本。</div>
-                </div>
-
-                <div class="result-block">
-                    <h3>需求说明</h3>
-                    <div id="requirementCard" class="summary-card">当前未启用需求增强。</div>
-                </div>
-
-                <div class="result-block">
-                    <h3>增强上下文</h3>
-                    <div id="builderAiContextCard" class="summary-card">当前为规则模式，未启用 Skill / Memory 增强。</div>
-                </div>
-
-                <div class="result-block">
-                    <h3>表结构增强</h3>
-                    <div id="builderSchemaAssistCard" class="summary-card">当前未启用生成前表结构分析。</div>
-                </div>
-
-                <div class="result-block">
-                    <h3>Mapping 诊断</h3>
-                    <ul id="mappingDiagnosisList" class="issues-list">
-                        <li>等待诊断结果...</li>
-                    </ul>
-                </div>
-
-                <div class="result-block">
-                    <h3>规则配置</h3>
-                    <ul id="ruleProfileList" class="issues-list">
-                        <li>等待加载规范规则...</li>
-                    </ul>
-                </div>
-
-                <div class="result-block">
-                    <h3>SQL 代码</h3>
-                    <pre id="sqlOutput" class="code-block generated-sql-block">等待生成 SQL...</pre>
-                </div>
-
-                <details class="fold-panel">
-                    <summary>修复后 Mapping</summary>
-                    <pre id="normalizedMappingOutput" class="code-block subtle">如果输入存在格式问题，AI 修复后的 Mapping 会展示在这里。</pre>
-                </details>
-
-                <details class="fold-panel">
-                    <summary>规则草稿 SQL</summary>
-                    <pre id="draftSqlOutput" class="code-block subtle">AI 模式下会展示规则引擎草稿，便于对比。</pre>
-                </details>
-
-                <div class="result-block">
-                    <h3>规范校验</h3>
-                    <ul id="issuesList" class="issues-list">
-                        <li>等待校验结果...</li>
-                    </ul>
-                </div>
-
-                <div class="result-block">
-                    <h3>字段覆盖 / 合法性</h3>
-                    <ul id="fieldChecksList" class="issues-list">
-                        <li>等待字段检查结果...</li>
-                    </ul>
-                </div>
-            </section>
-        </main>
-
-        <main class="workspace workspace-compare hidden" id="compareView">
-            <section class="panel panel-compare-controls">
-                <div class="panel-header">
-                    <h2>版本对比</h2>
-                    <button id="refreshTasksBtn" class="button button-secondary" type="button">刷新版本列表</button>
-                </div>
-
-                <div class="field compare-hint compare-hint-top">
-                    <span>对比说明</span>
-                    <div class="summary-card compact-card">
-                        左侧查看历史版本，右侧维护当前 Mapping、需求与 Skill。系统会基于当前输入重新生成 SQL，并与历史版本做对比。
-                    </div>
-                </div>
-
-                <div class="compare-grid compare-grid-two">
-                    <label class="field">
-                        <span>任务</span>
-                        <select id="taskSelect">
-                            <option value="">请选择任务</option>
-                        </select>
-                    </label>
-                    <label class="field">
-                        <span>历史版本</span>
-                        <select id="historyVersionSelect">
-                            <option value="">请选择版本</option>
-                        </select>
-                    </label>
-                </div>
-
-                <div class="hero-actions compact">
-                    <button id="loadHistoryBtn" class="button button-secondary" type="button">查看历史版本</button>
-                    <button id="compareBtn" class="button button-primary" type="button">开始版本对比</button>
-                </div>
-
-                <details class="fold-panel compare-history-panel" open>
-                    <summary>历史版本说明</summary>
-                    <div id="compareSummaryCard" class="summary-card fold-card">等待选择历史版本</div>
-                </details>
-
-                <details class="fold-panel compare-history-panel">
-                    <summary>历史版本</summary>
-                    <pre id="historySqlOutput" class="code-block subtle">请选择任务和版本后查看历史 SQL。</pre>
-                </details>
-
-                <details class="fold-panel compare-history-panel">
-                    <summary>历史 Mapping</summary>
-                    <pre id="historyMappingOutput" class="code-block subtle">请选择任务和版本后查看历史 Mapping。</pre>
-                </details>
-            </section>
-
-            <section class="panel panel-compare-results">
-                <div class="panel-header">
-                    <h2>对比结果</h2>
-                    <span class="panel-tag">History vs Current</span>
-                </div>
-
-                <details class="fold-panel" open>
-                    <summary>Mapping 变更影响分析</summary>
-                    <ul id="mappingImpactList" class="issues-list fold-list">
-                        <li>等待对比结果...</li>
-                    </ul>
-                </details>
-
-                <div id="compareEnhancementSection" class="result-block hidden">
-                    <div class="config-grid">
                         <label class="field">
-                            <span>Skill 选择器（选择后会自动注入对应逻辑）</span>
+                            <span>历史版本</span>
+                            <select id="historyVersionSelect">
+                                <option value="">请选择版本</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="hero-actions compact">
+                        <button id="loadHistoryBtn" class="button button-secondary" type="button">查看历史版本</button>
+                        <button id="compareBtn" class="button button-primary" type="button">开始版本对比</button>
+                    </div>
+
+                    <details class="fold-panel compare-history-panel" open>
+                        <summary>历史版本说明</summary>
+                        <div id="compareSummaryCard" class="summary-card fold-card">等待选择历史版本</div>
+                    </details>
+
+                    <details class="fold-panel compare-history-panel">
+                        <summary>历史版本 SQL</summary>
+                        <pre id="historySqlOutput" class="code-block subtle">请选择任务和版本后查看历史 SQL。</pre>
+                    </details>
+
+                    <details class="fold-panel compare-history-panel">
+                        <summary>历史 Mapping</summary>
+                        <pre id="historyMappingOutput" class="code-block subtle">请选择任务和版本后查看历史 Mapping。</pre>
+                    </details>
+                </section>
+
+                <section class="panel panel-current">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Current</span>
+                            <h2>当前输入</h2>
+                        </div>
+                        <span class="panel-tag">Mapping</span>
+                    </div>
+
+                    <div id="compareEnhancementSection" class="result-block hidden">
+                        <label class="field">
+                            <span>Skill 选择器</span>
                             <select id="compareSkillSelect">
                                 <option value="none">无</option>
                             </select>
                         </label>
                     </div>
-                </div>
 
-                <div id="compareRequirementSection" class="result-block hidden">
-                    <h3>当前业务需求</h3>
-                    <textarea id="compareRequirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写当前用于对比生成 SQL 的业务需求。"></textarea>
-                </div>
-
-                <div class="result-block">
-                    <h3>当前待对比 Mapping</h3>
-                    <textarea id="compareMappingInput" spellcheck="false" placeholder="请在这里粘贴新的 Mapping。系统会基于该 Mapping 生成新的 SQL，并与历史版本进行对比。"></textarea>
-                </div>
-
-                <div class="result-block">
-                    <h3>当前增强上下文</h3>
-                    <div id="compareAiContextCard" class="summary-card">当前为规则模式，未启用 Skill / Memory 增强。</div>
-                </div>
-
-                <div class="result-block">
-                    <div class="result-title-row">
-                        <h3>当前生成 SQL</h3>
-                        <button id="copyCompareSqlBtn" class="button button-ghost button-small" type="button">复制 SQL</button>
+                    <div id="compareRequirementSection" class="result-block hidden">
+                        <h3>当前业务需求</h3>
+                        <textarea id="compareRequirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写当前用于对比生成 SQL 的业务需求。"></textarea>
                     </div>
-                    <pre id="currentCompareSqlOutput" class="code-block generated-sql-block">等待对比生成结果...</pre>
-                </div>
 
-                <div class="result-block">
-                    <h3>SQL 差异</h3>
-                    <pre id="sqlDiffOutput" class="diff-block">等待对比结果...</pre>
-                </div>
-
-                <details class="fold-panel">
-                    <summary>Mapping 差异</summary>
-                    <pre id="mappingDiffOutput" class="diff-block subtle">等待对比结果...</pre>
-                </details>
-            </section>
-        </main>
-
-        <main class="workspace workspace-builder hidden" id="insightView">
-            <section class="panel panel-editor">
-                <div class="panel-header">
-                    <h2>SQL 输入</h2>
-                    <span class="panel-tag">SQL / TXT</span>
-                </div>
-
-                <div class="upload-card">
-                    <div>
-                        <strong>上传 SQL 文件</strong>
-                        <p>支持 `.sql` 或 `.txt`，系统会自动读取文件内容并填充到编辑区。</p>
+                    <div class="result-block">
+                        <h3>当前待对比 Mapping</h3>
+                        <textarea id="compareMappingInput" spellcheck="false" placeholder="请在这里粘贴新的 Mapping。系统会基于该 Mapping 生成新的 SQL，并与历史版本进行对比。"></textarea>
                     </div>
-                    <label class="upload-button">
-                        <input id="sqlInsightFileInput" type="file" accept=".sql,.txt,text/plain">
-                        <span>选择 SQL 文件</span>
-                    </label>
-                </div>
 
-                <div class="deepseek-toggle-row insight-actions">
-                    <button id="analyzeSqlBtn" class="button button-primary" type="button">分析并优化 SQL</button>
-                </div>
-
-                <textarea id="sqlInsightInput" spellcheck="false" placeholder="请粘贴待分析的 SQL，或上传 .sql / .txt 文件。"></textarea>
-                <p id="sqlInsightMessage" class="form-message"></p>
-            </section>
-
-            <section class="panel panel-results">
-                <div class="panel-header">
-                    <h2>SQL拆解 + 优化</h2>
-                    <span class="panel-tag">DeepSeek Insight</span>
-                </div>
-
-                <div class="result-block">
-                    <h3>SQL作用分析</h3>
-                    <ul id="sqlPurposeList" class="issues-list">
-                        <li>等待分析结果...</li>
-                    </ul>
-                </div>
-
-                <div class="result-block">
-                    <h3>SQL结构拆解</h3>
-                    <div id="sqlStructureCard" class="summary-card">等待分析结果...</div>
-                </div>
-
-                <div class="result-block">
-                    <h3>优化建议</h3>
-                    <ul id="sqlSuggestionList" class="issues-list">
-                        <li>等待优化建议...</li>
-                    </ul>
-                </div>
-
-                <div class="result-block">
-                    <h3>优化后 SQL</h3>
-                    <pre id="optimizedSqlOutput" class="code-block generated-sql-block">等待分析结果...</pre>
-                </div>
-
-                <div class="result-block">
-                    <h3>优化前后差异</h3>
-                    <pre id="optimizedSqlDiffOutput" class="diff-block">等待分析结果...</pre>
-                </div>
-            </section>
-        </main>
-
-        <main class="workspace workspace-builder hidden" id="schemaView">
-            <section class="panel panel-editor">
-                <div class="panel-header">
-                    <h2>表结构输入</h2>
-                    <span class="panel-tag">DDL / Excel / CSV / JSON</span>
-                </div>
-
-                <div class="upload-card">
-                    <div>
-                        <strong>上传表结构文件</strong>
-                        <p>支持 `.xlsx`、`.csv`、`.json`、`.sql`、`.txt`，系统会自动识别并分析。</p>
+                    <div class="result-block">
+                        <h3>当前增强上下文</h3>
+                        <div id="compareAiContextCard" class="summary-card">当前为规则模式，未启用 Skill / Memory 增强。</div>
                     </div>
-                    <label class="upload-button">
-                        <input id="schemaFileInput" type="file" accept=".xlsx,.csv,.json,.sql,.txt,text/plain,application/json">
-                        <span>选择表结构文件</span>
-                    </label>
-                </div>
+                </section>
 
-                <div class="deepseek-toggle-row insight-actions schema-action-row">
-                    <button id="downloadSchemaTemplateBtn" class="button button-ghost" type="button">下载表结构样例</button>
-                    <button id="analyzeSchemaBtn" class="button button-primary" type="button">分析表结构</button>
-                </div>
+                <section class="panel panel-compare-results">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Diff</span>
+                            <h2>对比结果</h2>
+                        </div>
+                        <span class="panel-tag">History vs Current</span>
+                    </div>
 
-                <textarea id="schemaInput" spellcheck="false" placeholder="请粘贴 DDL / CREATE TABLE SQL / JSON / CSV 内容，或上传文件。"></textarea>
-                <p id="schemaMessage" class="form-message"></p>
-            </section>
+                    <details class="fold-panel" open>
+                        <summary>Mapping 变更影响分析</summary>
+                        <ul id="mappingImpactList" class="issues-list fold-list">
+                            <li>等待对比结果...</li>
+                        </ul>
+                    </details>
 
-            <section class="panel panel-results">
-                <div class="panel-header">
-                    <h2>表结构分析</h2>
-                    <span class="panel-tag">Schema Insight</span>
-                </div>
+                    <div class="result-block">
+                        <div class="result-title-row">
+                            <h3>当前生成 SQL</h3>
+                            <button id="copyCompareSqlBtn" class="button button-ghost button-small" type="button">复制 SQL</button>
+                        </div>
+                        <pre id="currentCompareSqlOutput" class="code-block generated-sql-block">等待对比生成结果...</pre>
+                    </div>
 
-                <div class="result-block">
-                    <h3>表结构整理</h3>
-                    <pre id="schemaFieldsOutput" class="code-block generated-sql-block">等待分析结果...</pre>
-                </div>
+                    <div class="result-block">
+                        <h3>SQL 差异</h3>
+                        <pre id="sqlDiffOutput" class="diff-block">等待对比结果...</pre>
+                    </div>
 
-                <div class="result-block">
-                    <h3>表用途分析</h3>
-                    <div id="schemaPurposeCard" class="summary-card">等待分析结果...</div>
-                </div>
+                    <details class="fold-panel">
+                        <summary>Mapping 差异</summary>
+                        <pre id="mappingDiffOutput" class="diff-block subtle">等待对比结果...</pre>
+                    </details>
+                </section>
+            </main>
 
-                <div class="result-block">
-                    <h3>关键字段识别</h3>
-                    <div id="schemaKeyFieldsCard" class="summary-card">等待分析结果...</div>
-                </div>
+            <main class="workspace workspace-builder hidden" id="insightView">
+                <section class="panel panel-editor">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">SQL</span>
+                            <h2>SQL 输入</h2>
+                        </div>
+                        <div class="panel-header-actions">
+                            <span class="panel-tag">SQL / TXT</span>
+                        </div>
+                    </div>
 
-                <div class="result-block">
-                    <h3>可复用建议</h3>
-                    <ul id="schemaReuseList" class="issues-list">
-                        <li>等待分析结果...</li>
-                    </ul>
-                </div>
-            </section>
-        </main>
+                    <div class="upload-card">
+                        <div>
+                            <strong>上传 SQL 文件</strong>
+                            <p>支持 `.sql` 或 `.txt`，系统会自动读取文件内容并填充到编辑区。</p>
+                        </div>
+                        <label class="upload-button">
+                            <input id="sqlInsightFileInput" type="file" accept=".sql,.txt,text/plain">
+                            <span>选择 SQL 文件</span>
+                        </label>
+                    </div>
+
+                    <div class="deepseek-toggle-row insight-actions">
+                        <button id="analyzeSqlBtn" class="button button-primary" type="button">分析并优化 SQL</button>
+                    </div>
+
+                    <textarea id="sqlInsightInput" spellcheck="false" placeholder="请粘贴待分析的 SQL，或上传 .sql / .txt 文件。"></textarea>
+                    <p id="sqlInsightMessage" class="form-message"></p>
+                </section>
+
+                <section class="panel panel-results">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Insight</span>
+                            <h2>SQL 拆解 + 优化</h2>
+                        </div>
+                        <span class="panel-tag">DeepSeek Insight</span>
+                    </div>
+
+                    <div class="result-grid">
+                        <div class="result-block">
+                            <h3>SQL 作用分析</h3>
+                            <ul id="sqlPurposeList" class="issues-list">
+                                <li>等待分析结果...</li>
+                            </ul>
+                        </div>
+                        <div class="result-block">
+                            <h3>优化建议</h3>
+                            <ul id="sqlSuggestionList" class="issues-list">
+                                <li>等待优化建议...</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>SQL 结构拆解</h3>
+                        <div id="sqlStructureCard" class="summary-card">等待分析结果...</div>
+                    </div>
+
+                    <div class="result-block">
+                        <div class="result-title-row">
+                            <h3>优化后 SQL</h3>
+                            <button id="copyOptimizedSqlBtn" class="button button-ghost button-small" type="button">复制 SQL</button>
+                        </div>
+                        <pre id="optimizedSqlOutput" class="code-block generated-sql-block">等待分析结果...</pre>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>优化前后差异</h3>
+                        <pre id="optimizedSqlDiffOutput" class="diff-block">等待分析结果...</pre>
+                    </div>
+                </section>
+            </main>
+
+            <main class="workspace workspace-builder hidden" id="schemaView">
+                <section class="panel panel-editor">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Schema</span>
+                            <h2>表结构输入</h2>
+                        </div>
+                        <div class="panel-header-actions">
+                            <span class="panel-tag">DDL / Excel / CSV / JSON</span>
+                        </div>
+                    </div>
+
+                    <div class="upload-card">
+                        <div>
+                            <strong>上传表结构文件</strong>
+                            <p>支持 `.xlsx`、`.csv`、`.json`、`.sql`、`.txt`，系统会自动识别并分析。</p>
+                        </div>
+                        <label class="upload-button">
+                            <input id="schemaFileInput" type="file" accept=".xlsx,.csv,.json,.sql,.txt,text/plain,application/json">
+                            <span>选择表结构文件</span>
+                        </label>
+                    </div>
+
+                    <div class="deepseek-toggle-row insight-actions schema-action-row">
+                        <button id="downloadSchemaTemplateBtn" class="button button-ghost" type="button">下载表结构样例</button>
+                        <button id="analyzeSchemaBtn" class="button button-primary" type="button">分析表结构</button>
+                    </div>
+
+                    <textarea id="schemaInput" spellcheck="false" placeholder="请粘贴 DDL / CREATE TABLE SQL / JSON / CSV 内容，或上传文件。"></textarea>
+                    <p id="schemaMessage" class="form-message"></p>
+                </section>
+
+                <section class="panel panel-results">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Result</span>
+                            <h2>表结构分析</h2>
+                        </div>
+                        <span class="panel-tag">Schema Insight</span>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>表结构整理</h3>
+                        <pre id="schemaFieldsOutput" class="code-block generated-sql-block">等待分析结果...</pre>
+                    </div>
+
+                    <div class="result-grid">
+                        <div class="result-block">
+                            <h3>表用途分析</h3>
+                            <div id="schemaPurposeCard" class="summary-card">等待分析结果...</div>
+                        </div>
+                        <div class="result-block">
+                            <h3>关键字段识别</h3>
+                            <div id="schemaKeyFieldsCard" class="summary-card">等待分析结果...</div>
+                        </div>
+                    </div>
+
+                    <div class="result-block">
+                        <h3>可复用建议</h3>
+                        <ul id="schemaReuseList" class="issues-list">
+                            <li>等待分析结果...</li>
+                        </ul>
+                    </div>
+                </section>
+            </main>
+        </div>
     </div>
 
     <script src="/assets/app.js"></script>
