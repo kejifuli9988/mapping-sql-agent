@@ -8,8 +8,5 @@ echo "Cleaning port $PORT..."
 kill -9 $(lsof -ti :$PORT) 2>/dev/null
 
 echo "Starting web app..."
-python3 webapp.py --host 127.0.0.1 --port $PORT &
-
-sleep 2
-
-open http://127.0.0.1:$PORT
+(sleep 2 && open http://127.0.0.1:$PORT) &
+python3 webapp.py --host 127.0.0.1 --port $PORT
