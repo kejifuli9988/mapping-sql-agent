@@ -52,7 +52,7 @@ class SQLInsightService:
         try:
             payload = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise ValueError("DeepSeek returned invalid JSON while analyzing SQL.") from exc
+            raise ValueError("模型服务返回了无法解析的 SQL 分析 JSON。") from exc
 
         result = {
             "purpose_analysis": self._normalize_list(payload.get("purpose_analysis", [])),

@@ -78,7 +78,7 @@ class SchemaInsightService:
         try:
             payload = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise ValueError("DeepSeek returned invalid JSON while analyzing schema.") from exc
+            raise ValueError("模型服务返回了无法解析的表结构分析 JSON。") from exc
 
         result = {
             "fields": self._normalize_fields(payload.get("fields", [])) or fallback["fields"],

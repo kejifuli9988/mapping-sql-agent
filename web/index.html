@@ -55,7 +55,7 @@
                 </div>
                 <div class="metric-card">
                     <span class="metric-label">增强模式</span>
-                    <strong>DeepSeek + Memory + Schema</strong>
+                    <strong>智能体 + Memory + Schema</strong>
                 </div>
             </div>
         </aside>
@@ -76,11 +76,11 @@
                             <span class="visually-hidden">生成模式</span>
                             <select id="modeSelect" class="visually-hidden" aria-hidden="true" tabindex="-1">
                                 <option value="rule">规则模式</option>
-                                <option value="deepseek">DeepSeek 增强</option>
+                                <option value="deepseek">智能体增强</option>
                             </select>
                             <div class="segmented-control" id="builderModeSegment" role="tablist" aria-label="生成模式">
                                 <button class="segment-button segment-button-active" type="button" data-mode-value="rule">规则模式</button>
-                                <button class="segment-button" type="button" data-mode-value="deepseek">DeepSeek 增强</button>
+                                <button class="segment-button" type="button" data-mode-value="deepseek">智能体增强</button>
                             </div>
                         </label>
                         <button id="generateBtn" class="button button-primary mode-generate-button" type="button">生成 SQL</button>
@@ -143,7 +143,7 @@
 
                         <div id="requirementSection" class="result-block hidden">
                             <h3>业务需求</h3>
-                            <textarea id="requirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，输出日汇总结果。"></textarea>
+                            <textarea id="requirementInput" spellcheck="false" placeholder="智能体增强模式下，请填写业务需求，例如：按产品汇总成功订单销售额，只保留金额大于 100 的订单，输出日汇总结果。"></textarea>
                         </div>
                     </div>
                 </section>
@@ -155,7 +155,7 @@
                             <h2>Mapping 编辑器</h2>
                         </div>
                     </div>
-                    <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。DeepSeek 模式下支持自动分析并修复格式问题。"></textarea>
+                    <textarea id="mappingInput" spellcheck="false" placeholder="请粘贴 Mapping 内容，或上传 Excel Mapping 文件。智能体增强模式下支持自动分析并修复格式问题。"></textarea>
                     <p id="formMessage" class="form-message"></p>
                 </section>
 
@@ -321,7 +321,7 @@
 
                     <div id="compareRequirementSection" class="result-block hidden">
                         <h3>当前业务需求</h3>
-                        <textarea id="compareRequirementInput" spellcheck="false" placeholder="DeepSeek 增强模式下，请填写当前用于对比生成 SQL 的业务需求。"></textarea>
+                        <textarea id="compareRequirementInput" spellcheck="false" placeholder="智能体增强模式下，请填写当前用于对比生成 SQL 的业务需求。"></textarea>
                     </div>
 
                     <div class="result-block">
@@ -447,7 +447,7 @@
                             <span class="panel-kicker">Insight</span>
                             <h2>SQL 拆解 + 优化</h2>
                         </div>
-                        <span class="panel-tag">DeepSeek Insight</span>
+                        <span class="panel-tag">智能体 Insight</span>
                     </div>
 
                     <div class="result-block">

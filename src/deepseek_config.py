@@ -29,7 +29,7 @@ class DeepSeekConfigService:
             "base_url": runtime["base_url"],
             "source": str(self.config_path),
             "message": (
-                f"已从本地 JSON 加载 DeepSeek 配置，当前模型为 {runtime['model']}。"
+                f"已从本地 JSON 加载模型服务配置，当前模型为 {runtime['model']}。"
                 if configured
                 else f"本地 JSON 已接入，但 {self.config_path.name} 中尚未配置 API Key。"
             ),
@@ -41,7 +41,7 @@ class DeepSeekConfigService:
         try:
             payload = json.loads(self.config_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise ValueError(f"DeepSeek 本地配置文件解析失败：{exc}") from exc
+            raise ValueError(f"模型服务本地配置文件解析失败：{exc}") from exc
         if not isinstance(payload, dict):
-            raise ValueError("DeepSeek 本地配置文件必须是 JSON 对象。")
+            raise ValueError("模型服务本地配置文件必须是 JSON 对象。")
         return payload

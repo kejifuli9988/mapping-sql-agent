@@ -148,10 +148,10 @@ const RULE_MODE_UPLOAD_CONFIG = {
 
 const DEEPSEEK_MODE_UPLOAD_CONFIG = {
     title: "上传 Mapping 文件",
-    description: "支持：✓ Excel  ✓ CSV  ✓ Markdown  ✓ JSON。系统会先加载原始内容，再由 DeepSeek 自动判断结构并分析。",
+    description: "支持：✓ Excel  ✓ CSV  ✓ Markdown  ✓ JSON。系统会先加载原始内容，再由智能体自动判断结构并分析。",
     buttonText: "选择 Mapping 文件",
     accept: ".xlsx,.csv,.md,.markdown,.json,.txt,text/plain,application/json",
-    placeholder: "请粘贴 Mapping 内容，或上传 Excel / CSV / Markdown / JSON 文件。DeepSeek 模式下会自动分析结构并尽量修复格式问题。",
+    placeholder: "请粘贴 Mapping 内容，或上传 Excel / CSV / Markdown / JSON 文件。智能体增强模式下会自动分析结构并尽量修复格式问题。",
 };
 
 function getCurrentGenerationMode() {
@@ -195,7 +195,7 @@ async function loadDeepSeekConfigStatus() {
     const response = await fetch("/api/deepseek-config");
     const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.error || "DeepSeek 本地配置加载失败");
+        throw new Error(data.error || "智能体模型配置加载失败");
     }
     deepseekConfigStatus = data;
 }
@@ -434,7 +434,7 @@ function renderBuilderResult(data) {
     }
 
     if (data.fallback_used) {
-        setMessage(`DeepSeek 调用失败，已自动回退到规则模式：${data.fallback_reason}`, "error");
+        setMessage(`智能体模型调用失败，已自动回退到规则模式：${data.fallback_reason}`, "error");
     } else if (data.mapping_repaired) {
         setMessage("Mapping 已自动修复并完成 SQL 生成，同时已保存为新版本。", "ok");
     } else {
@@ -632,7 +632,7 @@ async function analyzeSqlInsight() {
             "优化"
         );
         if (data.fallback_used) {
-            setSqlInsightMessage(`DeepSeek 调用失败，已回退为规则分析：${data.fallback_reason}`, "error");
+            setSqlInsightMessage(`智能体模型调用失败，已回退为规则分析：${data.fallback_reason}`, "error");
         } else {
             setSqlInsightMessage("SQL 拆解与优化建议已生成。", "ok");
         }
@@ -902,7 +902,7 @@ function renderSchemaResult(data) {
     schemaKeyFieldsCard.textContent = formatKeyFields(data.key_fields || {});
     renderIssues(schemaReuseList, data.reuse_suggestions || ["未返回可复用建议。"]);
     if (data.fallback_used) {
-        setSchemaMessage(`DeepSeek 调用失败，已回退为规则分析：${data.fallback_reason}`, "error");
+        setSchemaMessage(`智能体模型调用失败，已回退为规则分析：${data.fallback_reason}`, "error");
     } else {
         setSchemaMessage("表结构分析已完成。", "ok");
     }
@@ -1070,7 +1070,7 @@ function formatAiContextCard(skillDetail, memoryItems, memoryEnabled, aiEnabled,
     const skillDesc = skillDetail && skillDetail.description
         ? skillDetail.description
         : "当前未注入特定业务模式。";
-    const fallbackHint = fallbackUsed ? "DeepSeek 调用失败，已回退为规则生成。\n" : "";
+    const fallbackHint = fallbackUsed ? "智能体模型调用失败，已回退为规则生成。\n" : "";
     if (!memoryEnabled) {
         return `${fallbackHint}Skill：${skillName}\n说明：${skillDesc}\nMemory：未注入（当前未选择 Skill）`;
     }
@@ -1230,7 +1230,7 @@ function updateDemoButtonLabel() {
         return;
     }
     if (getCurrentGenerationMode() === "deepseek") {
-        loadDemoBtn.textContent = "加载 DeepSeek 增强样例";
+        loadDemoBtn.textContent = "加载智能体增强样例";
         return;
     }
     loadDemoBtn.textContent = "加载生成 SQL 样例";

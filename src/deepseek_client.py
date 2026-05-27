@@ -26,7 +26,7 @@ class DeepSeekClient:
 
     def generate_text(self, messages: list[dict]) -> str:
         if not self.api_key:
-            raise ValueError("DeepSeek API Key is required.")
+            raise ValueError("模型服务 API Key is required.")
 
         payload = {
             "model": self.model,
@@ -52,20 +52,20 @@ class DeepSeekClient:
                 response_payload = json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
-            raise ValueError(f"DeepSeek API request failed: {detail}") from exc
+            raise ValueError(f"模型服务 API request failed: {detail}") from exc
         except error.URLError as exc:
-            raise ValueError(f"DeepSeek API connection failed: {exc.reason}") from exc
+            raise ValueError(f"模型服务 API connection failed: {exc.reason}") from exc
 
         try:
             content = response_payload["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
-            raise ValueError("DeepSeek API response is missing message content.") from exc
+            raise ValueError("模型服务 API response is missing message content.") from exc
 
         return content.strip()
 
     def stream_text(self, messages: list[dict]) -> Iterator[str]:
         if not self.api_key:
-            raise ValueError("DeepSeek API Key is required.")
+            raise ValueError("模型服务 API Key is required.")
 
         payload = {
             "model": self.model,
@@ -104,6 +104,6 @@ class DeepSeekClient:
                         yield delta
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="ignore")
-            raise ValueError(f"DeepSeek API request failed: {detail}") from exc
+            raise ValueError(f"模型服务 API request failed: {detail}") from exc
         except error.URLError as exc:
-            raise ValueError(f"DeepSeek API connection failed: {exc.reason}") from exc
+            raise ValueError(f"模型服务 API connection failed: {exc.reason}") from exc

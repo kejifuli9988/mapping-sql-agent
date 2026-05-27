@@ -41,7 +41,7 @@ RULE_SAMPLE: dict[str, Any] = {
 
 
 DEEPSEEK_SAMPLE: dict[str, Any] = {
-    "title": "DeepSeek 增强样例",
+    "title": "智能体增强样例",
     "description": "适合演示结合业务需求与 Mapping 生成更贴近业务口径的 SQL。",
     "mode": "deepseek",
     "mapping": {

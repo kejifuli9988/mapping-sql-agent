@@ -78,23 +78,23 @@ python webapp.py --host 127.0.0.1 --port 8000
 5. 一键生成 SQL
 6. 展示规范校验结果
 7. 一键复制生成 SQL
-8. 将 DeepSeek API Key 保存到浏览器本地缓存
+8. 通过本地配置加载模型服务能力
 
-## DeepSeek 增强模式
+## 智能体增强模式
 
-页面版已经支持可选的 DeepSeek 增强模式：
+页面版已经支持可选的智能体增强模式：
 
-1. 在页面中将“生成模式”切换为 `DeepSeek 增强`
-2. 输入 `DeepSeek API Key`
-3. 模型默认使用 `deepseek-v4-flash`
+1. 在页面中将“生成模式”切换为 `智能体增强`
+2. 在本地 JSON 中配置模型服务 API Key
+3. 当前原型可通过 DeepSeek API 提供底层模型能力
 4. 点击“生成 SQL”
 
-如果 DeepSeek 调用失败，系统会自动回退到本地规则模式，保证演示不中断。
+如果模型服务调用失败，系统会自动回退到本地规则模式，保证演示不中断。
 
 当 Mapping 输入不是合法 JSON 时：
 
 1. 规则模式会直接给出解析报错
-2. DeepSeek 增强模式会尝试自动修复 Mapping
+2. 智能体增强模式会尝试自动修复 Mapping
 3. 页面会展示 Mapping 诊断和修复后的 Mapping
 
 你也可以使用环境变量：

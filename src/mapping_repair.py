@@ -27,12 +27,12 @@ class MappingRepairService:
             payload = json.loads(content)
         except json.JSONDecodeError as exc:
             raise ValueError(
-                "DeepSeek returned an invalid JSON payload while repairing the mapping."
+                "模型服务返回了无法解析的 Mapping 修复 JSON。"
             ) from exc
 
         if "normalized_mapping" not in payload:
             raise ValueError(
-                "DeepSeek repair result is missing the normalized_mapping field."
+                "模型服务的 Mapping 修复结果缺少 normalized_mapping 字段。"
             )
 
         normalized_mapping = self.loader.validate_mapping(payload["normalized_mapping"])
