@@ -85,31 +85,32 @@ class SampleExcelBuilder:
         sheets = {
             "sheet1.xml": [
                 ["key", "value"],
-                ["task_name", "dws_sales_summary_day"],
-                ["target_table", "dws_sales_summary_day"],
+                ["task_name", "dws_custody_product_clearing_day"],
+                ["target_table", "dws_custody_product_clearing_day"],
                 ["target_partition", "dt='${biz_date}'"],
             ],
             "sheet2.xml": [
                 ["name", "alias"],
-                ["ods_order_detail_di", "od"],
-                ["dim_product_info_df", "dp"],
+                ["dwd_custody_clearing_detail_di", "cl"],
+                ["dim_custody_product_df", "dp"],
             ],
             "sheet3.xml": [
                 ["type", "right_alias", "condition"],
-                ["left", "dp", "od.product_id = dp.product_id"],
+                ["left", "dp", "cl.product_id = dp.product_id"],
             ],
             "sheet4.xml": [
                 ["condition"],
-                ["od.dt = '${biz_date}'"],
-                ["od.order_status = 'success'"],
+                ["cl.dt = '${biz_date}'"],
+                ["cl.clear_status in ('success', 'fail')"],
             ],
             "sheet5.xml": [
                 ["name", "expression"],
                 ["dt", "'${biz_date}'"],
-                ["product_id", "od.product_id"],
+                ["product_id", "cl.product_id"],
                 ["product_name", "dp.product_name"],
-                ["sales_amt", "SUM(od.pay_amt)"],
-                ["order_cnt", "COUNT(DISTINCT od.order_id)"],
+                ["clear_amt", "SUM(cl.clear_amt)"],
+                ["clear_cnt", "COUNT(DISTINCT cl.clear_id)"],
+                ["fail_cnt", "SUM(CASE WHEN cl.clear_status = 'fail' THEN 1 ELSE 0 END)"],
             ],
         }
 

@@ -18,7 +18,7 @@
             </div>
 
             <div class="sidebar-intro">
-                <p>在同一个界面完成 Mapping 输入、SQL 生成、版本追踪、SQL 拆解优化和表结构分析。</p>
+                <p>在同一个界面完成 Mapping 输入、SQL 生成、版本追踪、SQL 拆解优化、Skill 管理和表结构分析。</p>
             </div>
 
             <nav class="mode-switch" aria-label="工作区导航">
@@ -34,8 +34,12 @@
                     <span>03</span>
                     SQL 拆解优化
                 </button>
-                <button id="schemaModeBtn" class="mode-pill" type="button">
+                <button id="skillModeBtn" class="mode-pill" type="button">
                     <span>04</span>
+                    Skill 管理
+                </button>
+                <button id="schemaModeBtn" class="mode-pill" type="button">
+                    <span>05</span>
                     表结构分析
                 </button>
             </nav>
@@ -556,6 +560,95 @@
                         <ul id="schemaReuseList" class="issues-list">
                             <li>等待分析结果...</li>
                         </ul>
+                    </div>
+                </section>
+            </main>
+
+            <main class="workspace workspace-skill hidden" id="skillView">
+                <section class="panel panel-skill-list">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Skills</span>
+                            <h2>已有 Skill</h2>
+                        </div>
+                        <button id="newSkillBtn" class="button button-secondary" type="button">新建 Skill</button>
+                    </div>
+                    <p class="plain-note">
+                        Skill 用于把托管、清算、核算等业务经验沉淀为可复用上下文，SQL 生成和 SQL 拆解优化会将选中的 Skill 注入智能体提示词。
+                    </p>
+                    <div id="skillList" class="skill-list"></div>
+                </section>
+
+                <section class="panel panel-skill-editor">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Editor</span>
+                            <h2>Skill 编辑器</h2>
+                        </div>
+                        <span id="skillEditorModeTag" class="panel-tag">编辑</span>
+                    </div>
+                    <div class="skill-form">
+                        <label class="field">
+                            <span>Skill ID</span>
+                            <input id="skillIdInput" type="text" placeholder="例如 custody_clearing_reconcile">
+                        </label>
+                        <label class="field">
+                            <span>Skill 名称</span>
+                            <input id="skillNameInput" type="text" placeholder="例如 托管清算对账">
+                        </label>
+                        <label class="field">
+                            <span>适用场景说明</span>
+                            <textarea id="skillDescriptionInput" spellcheck="false" placeholder="说明这个 Skill 适用于什么业务场景、解决什么问题。"></textarea>
+                        </label>
+                        <label class="field">
+                            <span>SQL 生成偏好 / 模式</span>
+                            <textarea id="skillPatternInput" spellcheck="false" placeholder="例如：按产品、清算日期、状态分组，金额类字段使用 SUM，优先保留 dt 分区。"></textarea>
+                        </label>
+                        <label class="field">
+                            <span>示例场景（每行一条）</span>
+                            <textarea id="skillExamplesInput" spellcheck="false" placeholder="按产品和清算日期统计清算金额、成功笔数、失败笔数"></textarea>
+                        </label>
+                        <label class="field">
+                            <span>业务规则（每行一条）</span>
+                            <textarea id="skillRulesInput" spellcheck="false" placeholder="清算类 SQL 应优先保留清算日期或分区日期过滤"></textarea>
+                        </label>
+                        <div class="hero-actions compact skill-actions">
+                            <button id="saveSkillBtn" class="button button-primary" type="button">保存 Skill</button>
+                            <button id="deleteSkillBtn" class="button button-ghost" type="button">删除 Skill</button>
+                        </div>
+                        <p id="skillMessage" class="form-message"></p>
+                    </div>
+                </section>
+
+                <section class="panel panel-skill-draft">
+                    <div class="panel-header">
+                        <div>
+                            <span class="panel-kicker">Factory</span>
+                            <h2>Skill 生成器</h2>
+                        </div>
+                        <span class="panel-tag">托管清核算</span>
+                    </div>
+                    <div class="skill-form">
+                        <label class="field">
+                            <span>业务场景</span>
+                            <textarea id="skillScenarioInput" spellcheck="false" placeholder="例如：托管清算场景下，按产品、交易日期、清算状态统计清算金额、失败笔数和差异金额。"></textarea>
+                        </label>
+                        <label class="field">
+                            <span>可选：表结构 / Mapping / 样例 SQL</span>
+                            <textarea id="skillSourceInput" spellcheck="false" placeholder="可以粘贴相关 DDL、字段说明、Mapping 或历史 SQL，系统会据此生成 Skill 草稿。"></textarea>
+                        </label>
+                        <label class="field">
+                            <span>可选：生成要求</span>
+                            <textarea id="skillRequirementInput" spellcheck="false" placeholder="例如：要求优先使用 dt 分区，金额字段保留两位小数，输出异常状态说明。"></textarea>
+                        </label>
+                        <div class="hero-actions compact skill-actions">
+                            <button id="generateSkillDraftBtn" class="button button-secondary" type="button">生成 Skill 草稿</button>
+                            <button id="loadCustodySkillDemoBtn" class="button button-ghost" type="button">加载托管清算样例</button>
+                        </div>
+                        <div class="result-block">
+                            <h3>草稿预览</h3>
+                            <pre id="skillDraftPreview" class="code-block subtle">等待生成 Skill 草稿...</pre>
+                        </div>
                     </div>
                 </section>
             </main>

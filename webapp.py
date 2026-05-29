@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -114,6 +115,15 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/schema-insight":
             self._handle_schema_insight()
+            return
+        if parsed.path == "/api/skills/save":
+            self._handle_save_skill()
+            return
+        if parsed.path == "/api/skills/delete":
+            self._handle_delete_skill()
+            return
+        if parsed.path == "/api/skills/generate-draft":
+            self._handle_generate_skill_draft()
             return
 
         self._send_json({"error": "Not found."}, status=HTTPStatus.NOT_FOUND)
@@ -302,19 +312,26 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         try:
             samples = get_demo_samples()
             compare_sample = samples["compare"]
-            task_name = compare_sample["task_name"]
+            history_versions = compare_sample.get("history", [])
+            current_sample = compare_sample.get("current", {})
+            task_name = (
+                current_sample.get("mapping", {}).get("task_name")
+                or history_versions[0].get("mapping", {}).get("task_name")
+            )
+            if not task_name:
+                raise ValueError("版本对比样例缺少 task_name。")
             existing_versions = self.version_store.list_versions(task_name)
 
             if len(existing_versions) < 2:
-                for version in compare_sample["history_versions"]:
+                for version in history_versions:
                     result = self.agent.run_mapping(version["mapping"])
                     self.version_store.save(
                         mapping=version["mapping"],
                         sql=result["sql"],
-                        mode=version["mode"],
+                        mode=version.get("mode", "rule"),
                         style_issues=result["style_issues"],
                         summary=result["summary"],
-                        user_requirement=version["user_requirement"],
+                        user_requirement=version.get("requirement", ""),
                     )
                 existing_versions = self.version_store.list_versions(task_name)
 
@@ -324,10 +341,10 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                     "versions": existing_versions,
                     "selected_version_no": 2 if len(existing_versions) >= 2 else 1,
                     "current": {
-                        "mode": compare_sample["current"]["mode"],
-                        "skill_id": compare_sample["current"].get("skill_id", "none"),
-                        "requirement": compare_sample["current"]["requirement"],
-                        "mapping": compare_sample["current"]["mapping"],
+                        "mode": current_sample.get("mode", "deepseek"),
+                        "skill_id": current_sample.get("skill_id", "none"),
+                        "requirement": current_sample.get("requirement", ""),
+                        "mapping": current_sample.get("mapping", {}),
                     },
                     "description": compare_sample["description"],
                 }
@@ -390,6 +407,34 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                 {"error": "Request body must include 'schema_text' or 'file_base64'."},
                 status=HTTPStatus.BAD_REQUEST,
             )
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _handle_save_skill(self) -> None:
+        try:
+            body = self._read_json_body()
+            skill = self.business_memory.save_skill(body.get("skill", {}))
+            self._send_json({"skill": skill, "skills": self.business_memory.list_skills()})
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _handle_delete_skill(self) -> None:
+        try:
+            body = self._read_json_body()
+            self.business_memory.delete_skill(body.get("skill_id", ""))
+            self._send_json({"skills": self.business_memory.list_skills()})
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
+
+    def _handle_generate_skill_draft(self) -> None:
+        try:
+            body = self._read_json_body()
+            draft = self.business_memory.generate_skill_draft(
+                scenario=body.get("scenario", ""),
+                schema_text=body.get("schema_text", ""),
+                requirement=body.get("requirement", ""),
+            )
+            self._send_json({"skill": draft})
         except Exception as exc:  # noqa: BLE001
             self._send_json({"error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
 
@@ -627,8 +672,8 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run the Mapping SQL web application.")
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind the web app.")
-    parser.add_argument("--port", type=int, default=8000, help="Port to bind the web app.")
+    parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"), help="Host to bind the web app.")
+    parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")), help="Port to bind the web app.")
     return parser
 
 

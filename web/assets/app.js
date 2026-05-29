@@ -42,10 +42,12 @@ const builderSchemaMessage = document.getElementById("builderSchemaMessage");
 const builderModeBtn = document.getElementById("builderModeBtn");
 const compareModeBtn = document.getElementById("compareModeBtn");
 const insightModeBtn = document.getElementById("insightModeBtn");
+const skillModeBtn = document.getElementById("skillModeBtn");
 const schemaModeBtn = document.getElementById("schemaModeBtn");
 const builderView = document.getElementById("builderView");
 const compareView = document.getElementById("compareView");
 const insightView = document.getElementById("insightView");
+const skillView = document.getElementById("skillView");
 const schemaView = document.getElementById("schemaView");
 
 const refreshTasksBtn = document.getElementById("refreshTasksBtn");
@@ -96,36 +98,69 @@ const schemaPurposeCard = document.getElementById("schemaPurposeCard");
 const schemaKeyFieldsCard = document.getElementById("schemaKeyFieldsCard");
 const schemaReuseList = document.getElementById("schemaReuseList");
 
-const SQL_INSIGHT_SAMPLE = `WITH orders AS (
+const skillList = document.getElementById("skillList");
+const newSkillBtn = document.getElementById("newSkillBtn");
+const skillEditorModeTag = document.getElementById("skillEditorModeTag");
+const skillIdInput = document.getElementById("skillIdInput");
+const skillNameInput = document.getElementById("skillNameInput");
+const skillDescriptionInput = document.getElementById("skillDescriptionInput");
+const skillPatternInput = document.getElementById("skillPatternInput");
+const skillExamplesInput = document.getElementById("skillExamplesInput");
+const skillRulesInput = document.getElementById("skillRulesInput");
+const saveSkillBtn = document.getElementById("saveSkillBtn");
+const deleteSkillBtn = document.getElementById("deleteSkillBtn");
+const skillMessage = document.getElementById("skillMessage");
+const skillScenarioInput = document.getElementById("skillScenarioInput");
+const skillSourceInput = document.getElementById("skillSourceInput");
+const skillRequirementInput = document.getElementById("skillRequirementInput");
+const generateSkillDraftBtn = document.getElementById("generateSkillDraftBtn");
+const loadCustodySkillDemoBtn = document.getElementById("loadCustodySkillDemoBtn");
+const skillDraftPreview = document.getElementById("skillDraftPreview");
+
+const SQL_INSIGHT_SAMPLE = `WITH clearing AS (
     SELECT
         *
-    FROM ods_order_detail_di
+    FROM dwd_custody_clearing_detail_di
     WHERE dt = '\${biz_date}'
-      AND order_status = 'success'
+),
+trade_base AS (
+    SELECT
+        trade_id,
+        trade_amt
+    FROM dwd_custody_trade_detail_di
+    WHERE dt = '\${biz_date}'
 )
-INSERT OVERWRITE TABLE dws_product_sales_day
+INSERT OVERWRITE TABLE dws_custody_clearing_reconcile_day
 PARTITION (dt = '\${biz_date}')
 SELECT
-    product_id,
-    COUNT(DISTINCT order_id) AS order_cnt,
-    COUNT(DISTINCT user_id) AS buyer_cnt,
-    SUM(pay_amt) AS sales_amt
-FROM orders
+    c.product_id,
+    c.clear_status,
+    COUNT(DISTINCT c.clear_id) AS clear_cnt,
+    SUM(c.clear_amt) AS clear_amt,
+    SUM(t.trade_amt) AS trade_amt,
+    SUM(c.clear_amt - t.trade_amt) AS diff_amt
+FROM clearing c
+LEFT JOIN trade_base t
+    ON c.trade_id = t.trade_id
 GROUP BY
-    product_id;`;
-const SCHEMA_SAMPLE = `CREATE TABLE dwd_account_trade_detail_di (
+    c.product_id,
+    c.clear_status;`;
+const SCHEMA_SAMPLE = `CREATE TABLE dwd_custody_clearing_detail_di (
+    clear_id STRING COMMENT '清算流水号',
     trade_id STRING COMMENT '交易流水号',
-    user_id STRING COMMENT '客户号',
-    account_id STRING COMMENT '账户号',
     product_id STRING COMMENT '产品编号',
+    account_id STRING COMMENT '托管账户号',
     trade_dt STRING COMMENT '交易日期',
-    trade_time STRING COMMENT '交易时间',
+    clear_dt STRING COMMENT '清算日期',
+    clear_time STRING COMMENT '清算时间',
+    clear_status STRING COMMENT '清算状态',
     trade_amt DECIMAL(18,2) COMMENT '交易金额',
-    channel_code STRING COMMENT '渠道编码',
-    city_name STRING COMMENT '城市名称',
+    clear_amt DECIMAL(18,2) COMMENT '清算金额',
+    diff_amt DECIMAL(18,2) COMMENT '差异金额',
+    fail_reason STRING COMMENT '失败原因',
     dt STRING COMMENT '分区日期'
 )
-COMMENT '账户交易明细表'
+COMMENT '托管清算明细表'
 PARTITIONED BY (dt STRING);`;
 
 let demoSamplesCache = null;
@@ -137,6 +172,9 @@ let builderSchemaAnalysisCache = null;
 let insightSchemaUploadState = null;
 let insightSchemaAnalysisCache = null;
 let deepseekConfigStatus = null;
+let activeBuilderDemoType = "";
+let selectedSkillEditorId = "none";
+const customSkillSelects = new WeakMap();
 
 const RULE_MODE_UPLOAD_CONFIG = {
     title: "上传 Excel Mapping",
@@ -189,6 +227,7 @@ async function loadSkills() {
     populateSkillSelect(builderSkillSelect);
     populateSkillSelect(compareSkillSelect);
     populateSkillSelect(insightSkillSelect);
+    renderSkillManager();
 }
 
 async function loadDeepSeekConfigStatus() {
@@ -228,6 +267,277 @@ function populateSkillSelect(select) {
         select.appendChild(option);
     });
     select.value = skillsCache.some((item) => item.id === current) ? current : "none";
+    syncCustomSkillSelect(select);
+}
+
+function syncCustomSkillSelect(select) {
+    if (!select) {
+        return;
+    }
+    select.classList.add("native-skill-select");
+    let widget = customSkillSelects.get(select);
+    if (!widget) {
+        const root = document.createElement("div");
+        root.className = "custom-skill-select";
+        const trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.className = "custom-skill-trigger";
+        trigger.setAttribute("aria-haspopup", "listbox");
+        trigger.setAttribute("aria-expanded", "false");
+        const menu = document.createElement("div");
+        menu.className = "custom-skill-menu";
+        menu.setAttribute("role", "listbox");
+        root.append(trigger, menu);
+        select.insertAdjacentElement("afterend", root);
+        trigger.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeOtherSkillMenus(root);
+            const open = !root.classList.contains("custom-skill-select-open");
+            root.classList.toggle("custom-skill-select-open", open);
+            trigger.setAttribute("aria-expanded", String(open));
+        });
+        customSkillSelects.set(select, { root, trigger, menu });
+        widget = customSkillSelects.get(select);
+    }
+
+    const selected = skillsCache.find((item) => item.id === (select.value || "none"));
+    widget.trigger.textContent = selected ? selected.name : "无";
+    widget.menu.innerHTML = "";
+    skillsCache.forEach((skill) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "custom-skill-option";
+        option.classList.toggle("custom-skill-option-active", skill.id === select.value);
+        option.textContent = skill.name;
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", String(skill.id === select.value));
+        option.addEventListener("click", () => {
+            select.value = skill.id;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            widget.root.classList.remove("custom-skill-select-open");
+            widget.trigger.setAttribute("aria-expanded", "false");
+            syncCustomSkillSelect(select);
+        });
+        widget.menu.appendChild(option);
+    });
+}
+
+function closeOtherSkillMenus(currentRoot = null) {
+    document.querySelectorAll(".custom-skill-select-open").forEach((root) => {
+        if (root === currentRoot) {
+            return;
+        }
+        root.classList.remove("custom-skill-select-open");
+        const trigger = root.querySelector(".custom-skill-trigger");
+        if (trigger) {
+            trigger.setAttribute("aria-expanded", "false");
+        }
+    });
+}
+
+function renderSkillManager() {
+    if (!skillList) {
+        return;
+    }
+    skillList.innerHTML = "";
+    skillsCache.forEach((skill) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "skill-list-item";
+        button.classList.toggle("skill-list-item-active", skill.id === selectedSkillEditorId);
+        button.innerHTML = `
+            <strong></strong>
+            <span></span>
+        `;
+        button.querySelector("strong").textContent = skill.name || "未命名 Skill";
+        button.querySelector("span").textContent = skill.id || "-";
+        button.addEventListener("click", () => loadSkillIntoEditor(skill.id));
+        skillList.appendChild(button);
+    });
+    if (!skillsCache.some((item) => item.id === selectedSkillEditorId)) {
+        selectedSkillEditorId = skillsCache[0]?.id || "none";
+    }
+    if (!skillIdInput.value && skillsCache.length > 0) {
+        loadSkillIntoEditor(selectedSkillEditorId);
+    }
+}
+
+function loadSkillIntoEditor(skillId) {
+    const skill = skillsCache.find((item) => item.id === skillId) || skillsCache[0] || {
+        id: "",
+        name: "",
+        description: "",
+        sql_pattern: "",
+        examples: [],
+        business_rules: [],
+    };
+    selectedSkillEditorId = skill.id || "";
+    skillIdInput.value = skill.id || "";
+    skillNameInput.value = skill.name || "";
+    skillDescriptionInput.value = skill.description || "";
+    skillPatternInput.value = skill.sql_pattern || "";
+    skillExamplesInput.value = (skill.examples || []).join("\n");
+    skillRulesInput.value = (skill.business_rules || []).join("\n");
+    skillEditorModeTag.textContent = skill.id === "none" ? "只读" : "编辑";
+    deleteSkillBtn.disabled = skill.id === "none";
+    renderSkillManager();
+    setSkillMessage("", "");
+}
+
+function clearSkillEditor() {
+    selectedSkillEditorId = "";
+    skillIdInput.value = "";
+    skillNameInput.value = "";
+    skillDescriptionInput.value = "";
+    skillPatternInput.value = "";
+    skillExamplesInput.value = "";
+    skillRulesInput.value = "";
+    skillEditorModeTag.textContent = "新建";
+    deleteSkillBtn.disabled = true;
+    renderSkillManager();
+    setSkillMessage("请填写或生成 Skill 草稿后保存。", "");
+}
+
+function collectSkillForm() {
+    return {
+        id: skillIdInput.value.trim(),
+        name: skillNameInput.value.trim(),
+        description: skillDescriptionInput.value.trim(),
+        sql_pattern: skillPatternInput.value.trim(),
+        examples: splitLines(skillExamplesInput.value),
+        business_rules: splitLines(skillRulesInput.value),
+    };
+}
+
+function fillSkillForm(skill) {
+    selectedSkillEditorId = skill.id || "";
+    skillIdInput.value = skill.id || "";
+    skillNameInput.value = skill.name || "";
+    skillDescriptionInput.value = skill.description || "";
+    skillPatternInput.value = skill.sql_pattern || "";
+    skillExamplesInput.value = (skill.examples || []).join("\n");
+    skillRulesInput.value = (skill.business_rules || []).join("\n");
+    skillDraftPreview.textContent = JSON.stringify(skill, null, 2);
+    skillEditorModeTag.textContent = "草稿";
+    deleteSkillBtn.disabled = true;
+    renderSkillManager();
+}
+
+function splitLines(text) {
+    return text
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+
+async function saveSkill() {
+    const skill = collectSkillForm();
+    if (!skill.name) {
+        setSkillMessage("请先填写 Skill 名称。", "error");
+        return;
+    }
+    saveSkillBtn.disabled = true;
+    saveSkillBtn.textContent = "保存中...";
+    try {
+        const response = await fetch("/api/skills/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ skill }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Skill 保存失败");
+        }
+        skillsCache = data.skills || [];
+        selectedSkillEditorId = data.skill.id;
+        populateSkillSelect(builderSkillSelect);
+        populateSkillSelect(compareSkillSelect);
+        populateSkillSelect(insightSkillSelect);
+        loadSkillIntoEditor(selectedSkillEditorId);
+        setSkillMessage("Skill 已保存，并已同步到各模块选择器。", "ok");
+    } catch (error) {
+        setSkillMessage(error.message || "Skill 保存失败。", "error");
+    } finally {
+        saveSkillBtn.disabled = false;
+        saveSkillBtn.textContent = "保存 Skill";
+    }
+}
+
+async function deleteSkill() {
+    const skillId = skillIdInput.value.trim();
+    if (!skillId || skillId === "none") {
+        setSkillMessage("系统默认 Skill 不允许删除。", "error");
+        return;
+    }
+    deleteSkillBtn.disabled = true;
+    try {
+        const response = await fetch("/api/skills/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ skill_id: skillId }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Skill 删除失败");
+        }
+        skillsCache = data.skills || [];
+        selectedSkillEditorId = "none";
+        populateSkillSelect(builderSkillSelect);
+        populateSkillSelect(compareSkillSelect);
+        populateSkillSelect(insightSkillSelect);
+        loadSkillIntoEditor("none");
+        setSkillMessage("Skill 已删除。", "ok");
+    } catch (error) {
+        setSkillMessage(error.message || "Skill 删除失败。", "error");
+    } finally {
+        deleteSkillBtn.disabled = false;
+    }
+}
+
+async function generateSkillDraft() {
+    generateSkillDraftBtn.disabled = true;
+    generateSkillDraftBtn.textContent = "生成中...";
+    setSkillMessage("正在根据业务场景生成 Skill 草稿...", "");
+    try {
+        const response = await fetch("/api/skills/generate-draft", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                scenario: skillScenarioInput.value.trim(),
+                schema_text: skillSourceInput.value.trim(),
+                requirement: skillRequirementInput.value.trim(),
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Skill 草稿生成失败");
+        }
+        fillSkillForm(data.skill);
+        setSkillMessage("Skill 草稿已生成，可继续编辑后保存。", "ok");
+    } catch (error) {
+        setSkillMessage(error.message || "Skill 草稿生成失败。", "error");
+    } finally {
+        generateSkillDraftBtn.disabled = false;
+        generateSkillDraftBtn.textContent = "生成 Skill 草稿";
+    }
+}
+
+function loadCustodySkillDemo() {
+    skillScenarioInput.value = "托管清算场景下，按产品、交易日期、清算日期和清算状态统计清算金额、成功笔数、失败笔数和差异金额，并识别清算失败原因。";
+    skillSourceInput.value = `CREATE TABLE dwd_custody_clearing_detail_di (
+    product_id STRING COMMENT '产品编号',
+    account_id STRING COMMENT '托管账户号',
+    trade_dt STRING COMMENT '交易日期',
+    clear_dt STRING COMMENT '清算日期',
+    clear_status STRING COMMENT '清算状态',
+    trade_amt DECIMAL(18,2) COMMENT '交易金额',
+    clear_amt DECIMAL(18,2) COMMENT '清算金额',
+    diff_amt DECIMAL(18,2) COMMENT '差异金额',
+    fail_reason STRING COMMENT '失败原因',
+    dt STRING COMMENT '分区日期'
+);`;
+    skillRequirementInput.value = "要求优先使用 dt 或 clear_dt 过滤，金额字段使用 SUM，状态字段需要区分成功、失败和处理中，输出结果要便于对账复核。";
+    skillDraftPreview.textContent = "托管清算样例已加载，可点击“生成 Skill 草稿”。";
 }
 
 async function loadDemoByCurrentMode() {
@@ -244,13 +554,18 @@ async function loadDemoByCurrentMode() {
         sqlInsightInput.value = SQL_INSIGHT_SAMPLE;
         insightSchemaUploadState = null;
         insightSchemaAnalysisCache = null;
-        insightSkillSelect.value = skillsCache.some((item) => item.id === "product_aggregation") ? "product_aggregation" : "none";
+        insightSkillSelect.value = skillsCache.some((item) => item.id === "custody_clearing_reconcile") ? "custody_clearing_reconcile" : "none";
         insightSchemaAssistCheckbox.checked = true;
         insightSchemaInput.value = SCHEMA_SAMPLE;
         resetSqlInsightOutputs();
         updateEnhancementVisibility();
         syncInsightPreviewState();
         setSqlInsightMessage("SQL 分析样例、Skill 和表结构样例已加载，可直接点击“分析并优化 SQL”。", "ok");
+        return;
+    }
+    if (activeWorkspace === "skill") {
+        loadCustodySkillDemo();
+        setSkillMessage("托管清算 Skill 样例已加载，可生成草稿后保存。", "ok");
         return;
     }
     schemaUploadState = null;
@@ -276,7 +591,27 @@ async function loadBuilderDemo(type) {
     setBuilderSchemaMessage("", "");
     resetBuilderOutputs();
     updateEnhancementVisibility();
+    activeBuilderDemoType = type;
     setMessage(`${sample.title}已加载，可直接点击“生成 SQL”进行演示。`, "ok");
+}
+
+function resetBuilderInputsAfterModeSwitch(nextMode) {
+    const nextType = nextMode === "deepseek" ? "deepseek" : "rule";
+    activeBuilderDemoType = "";
+    mappingInput.value = "";
+    compareMappingInput.value = "";
+    requirementInput.value = "";
+    compareRequirementInput.value = "";
+    builderSkillSelect.value = "none";
+    builderSchemaAssistCheckbox.checked = false;
+    builderSchemaInput.value = "";
+    builderSchemaUploadState = null;
+    builderSchemaAnalysisCache = null;
+    setBuilderSchemaMessage("", "");
+    resetBuilderOutputs();
+    updateEnhancementVisibility();
+    syncBuilderPreviewState();
+    setMessage("已切换生成模式，输入区已重置为空白。需要演示数据时可点击“加载样例”。", "");
 }
 
 async function loadCompareDemo() {
@@ -287,17 +622,41 @@ async function loadCompareDemo() {
         throw new Error(data.error || "版本对比样例准备失败");
     }
 
+    switchMode("compare");
     setCurrentGenerationMode(data.current.mode || "deepseek");
     compareSkillSelect.value = data.current.skill_id || "none";
     requirementInput.value = data.current.requirement || "";
     compareRequirementInput.value = data.current.requirement || "";
     compareMappingInput.value = JSON.stringify(data.current.mapping, null, 2);
-    switchMode("compare");
-    await loadVersionTasks();
+
+    if (!Array.from(taskSelect.options).some((option) => option.value === data.task_name)) {
+        const option = document.createElement("option");
+        option.value = data.task_name;
+        option.textContent = `${data.task_name}（${(data.versions || []).length} 个版本）`;
+        taskSelect.appendChild(option);
+    }
     taskSelect.value = data.task_name;
-    await loadVersionsForTask(data.task_name);
+
+    historyVersionSelect.innerHTML = '<option value="">请选择版本</option>';
+    (data.versions || []).forEach((version) => {
+        const option = document.createElement("option");
+        option.value = String(version.version_no);
+        const requirementNote = version.user_requirement ? "含需求" : "无需求";
+        option.textContent =
+            `v${String(version.version_no).padStart(4, "0")} | ${version.created_at} | ${version.mode} | ${requirementNote}`;
+        historyVersionSelect.appendChild(option);
+    });
     historyVersionSelect.value = String(data.selected_version_no);
-    await loadHistoryVersion();
+    try {
+        await loadHistoryVersion();
+    } catch {
+        compareSummaryCard.textContent = "版本对比样例已加载，历史版本详情可手动点击查看。";
+    }
+
+    compareSkillSelect.value = data.current.skill_id || "none";
+    compareRequirementInput.value = data.current.requirement || "";
+    compareMappingInput.value = JSON.stringify(data.current.mapping, null, 2);
+    syncComparePreviewState();
     currentCompareSqlOutput.textContent = "等待点击对比按钮生成当前 SQL...";
     sqlDiffOutput.textContent = "等待对比结果...";
     mappingDiffOutput.textContent = "等待对比结果...";
@@ -994,7 +1353,7 @@ function buildAiConfig(scope) {
     const normalizedSkillId = skillId || "none";
     const includeMemory = normalizedSkillId !== "none";
     return {
-        enabled: scope === "insight" || scope === "insight-schema" || getCurrentGenerationMode() === "deepseek",
+        enabled: scope === "compare" || scope === "insight" || scope === "insight-schema" || getCurrentGenerationMode() === "deepseek",
         user_requirement: requirement,
         skill_id: normalizedSkillId,
         include_memory: includeMemory,
@@ -1142,6 +1501,7 @@ function updateRequirementCard(userRequirement) {
 }
 
 function syncBuilderPreviewState() {
+    syncCustomSkillSelect(builderSkillSelect);
     if (getCurrentGenerationMode() === "deepseek") {
         const requirement = requirementInput.value.trim();
         const selectedSkill = skillsCache.find((item) => item.id === (builderSkillSelect.value || "none")) || null;
@@ -1165,7 +1525,8 @@ function syncBuilderPreviewState() {
 }
 
 function syncComparePreviewState() {
-    if (getCurrentGenerationMode() === "deepseek") {
+    syncCustomSkillSelect(compareSkillSelect);
+    if (activeWorkspace === "compare") {
         const selectedSkill = skillsCache.find((item) => item.id === (compareSkillSelect.value || "none")) || null;
         const memoryPreviewItems = compareSkillSelect.value !== "none"
             ? [{ title: "待对比后展示具体条目" }]
@@ -1183,6 +1544,7 @@ function syncComparePreviewState() {
 }
 
 function syncInsightPreviewState() {
+    syncCustomSkillSelect(insightSkillSelect);
     const selectedSkill = skillsCache.find((item) => item.id === (insightSkillSelect.value || "none")) || null;
     const memoryPreviewItems = insightSkillSelect.value !== "none"
         ? [{ title: "待分析后展示具体条目" }]
@@ -1209,8 +1571,8 @@ function updateEnhancementVisibility() {
     builderSchemaAssistSection.classList.toggle("hidden", !isDeepSeek || !builderSchemaAssistCheckbox.checked);
     insightSchemaAssistSection.classList.toggle("hidden", !insightSchemaAssistCheckbox.checked);
     requirementSection.classList.toggle("hidden", !isDeepSeek);
-    compareRequirementSection.classList.toggle("hidden", activeWorkspace !== "compare" || !isDeepSeek);
-    compareEnhancementSection.classList.toggle("hidden", activeWorkspace !== "compare" || !isDeepSeek);
+    compareRequirementSection.classList.toggle("hidden", activeWorkspace !== "compare");
+    compareEnhancementSection.classList.toggle("hidden", activeWorkspace !== "compare");
     syncBuilderPreviewState();
     syncComparePreviewState();
     syncInsightPreviewState();
@@ -1227,6 +1589,10 @@ function updateDemoButtonLabel() {
     }
     if (activeWorkspace === "schema") {
         loadDemoBtn.textContent = "加载表结构分析样例";
+        return;
+    }
+    if (activeWorkspace === "skill") {
+        loadDemoBtn.textContent = "加载 Skill 样例";
         return;
     }
     if (getCurrentGenerationMode() === "deepseek") {
@@ -1261,6 +1627,11 @@ function setInsightSchemaMessage(text, type) {
     insightSchemaMessage.className = `form-message ${type}`.trim();
 }
 
+function setSkillMessage(text, type) {
+    skillMessage.textContent = text;
+    skillMessage.className = `form-message ${type}`.trim();
+}
+
 function setLoadingState(isLoading) {
     generateBtn.disabled = isLoading;
     loadDemoBtn.disabled = isLoading;
@@ -1291,6 +1662,11 @@ function setLoadingState(isLoading) {
     analyzeSchemaBtn.disabled = isLoading;
     downloadSchemaTemplateBtn.disabled = isLoading;
     schemaFileInput.disabled = isLoading;
+    newSkillBtn.disabled = isLoading;
+    saveSkillBtn.disabled = isLoading;
+    deleteSkillBtn.disabled = isLoading || skillIdInput.value === "none";
+    generateSkillDraftBtn.disabled = isLoading;
+    loadCustodySkillDemoBtn.disabled = isLoading;
 }
 
 function setExcelState(isLoading) {
@@ -1349,11 +1725,16 @@ function switchMode(mode) {
     builderView.classList.toggle("hidden", mode !== "builder");
     compareView.classList.toggle("hidden", mode !== "compare");
     insightView.classList.toggle("hidden", mode !== "insight");
+    skillView.classList.toggle("hidden", mode !== "skill");
     schemaView.classList.toggle("hidden", mode !== "schema");
     builderModeBtn.classList.toggle("mode-pill-active", mode === "builder");
     compareModeBtn.classList.toggle("mode-pill-active", mode === "compare");
     insightModeBtn.classList.toggle("mode-pill-active", mode === "insight");
+    skillModeBtn.classList.toggle("mode-pill-active", mode === "skill");
     schemaModeBtn.classList.toggle("mode-pill-active", mode === "schema");
+    if (mode === "skill") {
+        renderSkillManager();
+    }
     updateEnhancementVisibility();
     updateDemoButtonLabel();
 }
@@ -1414,6 +1795,9 @@ copyOptimizedSqlBtn.addEventListener("click", () => copySqlFromOutput(optimizedS
     "没有可展示的优化 SQL。",
 ], copyOptimizedSqlBtn));
 excelInput.addEventListener("change", (event) => parseMappingFile(event.target.files[0]));
+mappingInput.addEventListener("input", () => {
+    activeBuilderDemoType = "";
+});
 modeSelect.addEventListener("change", updateEnhancementVisibility);
 modeSelect.addEventListener("change", updateDemoButtonLabel);
 builderModeSegment.addEventListener("click", (event) => {
@@ -1421,9 +1805,12 @@ builderModeSegment.addEventListener("click", (event) => {
     if (!button) {
         return;
     }
-    setCurrentGenerationMode(button.dataset.modeValue || "rule");
-    updateEnhancementVisibility();
-    updateDemoButtonLabel();
+    const nextMode = button.dataset.modeValue || "rule";
+    if (nextMode === getCurrentGenerationMode()) {
+        return;
+    }
+    setCurrentGenerationMode(nextMode);
+    resetBuilderInputsAfterModeSwitch(nextMode);
 });
 builderSkillSelect.addEventListener("change", syncBuilderPreviewState);
 builderSchemaAssistCheckbox.addEventListener("change", () => {
@@ -1462,6 +1849,7 @@ compareModeBtn.addEventListener("click", async () => {
     await loadVersionTasks();
 });
 insightModeBtn.addEventListener("click", () => switchMode("insight"));
+skillModeBtn.addEventListener("click", () => switchMode("skill"));
 schemaModeBtn.addEventListener("click", () => switchMode("schema"));
 refreshTasksBtn.addEventListener("click", loadVersionTasks);
 taskSelect.addEventListener("change", (event) => loadVersionsForTask(event.target.value));
@@ -1475,6 +1863,17 @@ schemaFileInput.addEventListener("change", (event) => loadSchemaFile(event.targe
 schemaInput.addEventListener("input", () => {
     schemaUploadState = null;
 });
+document.addEventListener("click", () => closeOtherSkillMenus());
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        closeOtherSkillMenus();
+    }
+});
+newSkillBtn.addEventListener("click", clearSkillEditor);
+saveSkillBtn.addEventListener("click", saveSkill);
+deleteSkillBtn.addEventListener("click", deleteSkill);
+generateSkillDraftBtn.addEventListener("click", generateSkillDraft);
+loadCustodySkillDemoBtn.addEventListener("click", loadCustodySkillDemo);
 
 async function initialize() {
     await loadDeepSeekConfigStatus();

@@ -12,6 +12,8 @@ Thumbs.db
 
 storage/versions/
 output.sql
+config/deepseek_config.json
+docs/~$*.docx
 
 .idea/
 .vscode/settings.json

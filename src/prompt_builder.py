@@ -58,6 +58,7 @@ class PromptBuilder:
                 f"description: {selected_skill.get('description', '')}\n"
                 f"sql_pattern: {selected_skill.get('sql_pattern', '')}\n"
                 f"examples: {json.dumps(selected_skill.get('examples', []), ensure_ascii=False)}\n\n"
+                f"business_rules: {json.dumps(selected_skill.get('business_rules', []), ensure_ascii=False)}\n\n"
             )
         memory_section = ""
         if memory_items:
@@ -166,6 +167,7 @@ class PromptBuilder:
                 f"description: {selected_skill.get('description', '')}\n"
                 f"sql_pattern: {selected_skill.get('sql_pattern', '')}\n"
                 f"examples: {json.dumps(selected_skill.get('examples', []), ensure_ascii=False)}\n\n"
+                f"business_rules: {json.dumps(selected_skill.get('business_rules', []), ensure_ascii=False)}\n\n"
             )
         memory_section = ""
         if memory_items:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 
@@ -14,10 +15,13 @@ class DeepSeekConfigService:
 
     def load_runtime_config(self) -> dict:
         payload = self._read_config()
+        env_api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
+        env_model = os.getenv("DEEPSEEK_MODEL", "").strip()
+        env_base_url = os.getenv("DEEPSEEK_BASE_URL", "").strip()
         return {
-            "api_key": str(payload.get("api_key", "")).strip(),
-            "model": str(payload.get("model", "deepseek-v4-flash")).strip() or "deepseek-v4-flash",
-            "base_url": str(payload.get("base_url", "https://api.deepseek.com")).strip() or "https://api.deepseek.com",
+            "api_key": env_api_key or str(payload.get("api_key", "")).strip(),
+            "model": env_model or str(payload.get("model", "deepseek-v4-flash")).strip() or "deepseek-v4-flash",
+            "base_url": env_base_url or str(payload.get("base_url", "https://api.deepseek.com")).strip() or "https://api.deepseek.com",
         }
 
     def get_public_status(self) -> dict:
@@ -27,11 +31,11 @@ class DeepSeekConfigService:
             "configured": configured,
             "model": runtime["model"],
             "base_url": runtime["base_url"],
-            "source": str(self.config_path),
+            "source": "environment" if os.getenv("DEEPSEEK_API_KEY", "").strip() else str(self.config_path),
             "message": (
-                f"已从本地 JSON 加载模型服务配置，当前模型为 {runtime['model']}。"
+                f"已加载模型服务配置，当前模型为 {runtime['model']}。"
                 if configured
-                else f"本地 JSON 已接入，但 {self.config_path.name} 中尚未配置 API Key。"
+                else f"尚未配置 API Key，请设置 DEEPSEEK_API_KEY 或填写 {self.config_path.name}。"
             ),
         }
 
