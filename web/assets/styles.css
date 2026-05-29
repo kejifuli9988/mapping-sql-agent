@@ -400,6 +400,12 @@ h1 {
     grid-template-columns: minmax(0, 1fr) 160px;
     gap: 12px;
     align-items: end;
+    min-width: 0;
+}
+
+.setup-mode-field,
+.segmented-control {
+    min-width: 0;
 }
 
 .mapping-skill-row {
@@ -640,11 +646,14 @@ select:focus {
 }
 
 .segment-button {
+    min-width: 0;
     min-height: 36px;
     border: 0;
     border-radius: var(--radius-md);
     color: var(--primary);
     font-weight: 900;
+    overflow-wrap: anywhere;
+    white-space: normal;
     background: transparent;
     cursor: pointer;
 }
@@ -1279,6 +1288,21 @@ select:focus {
     .mode-generate-button {
         min-height: 48px;
     }
+
+    .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card {
+        grid-template-columns: 1fr;
+    }
+
+    .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .upload-card-actions {
+        display: grid;
+        min-width: 0;
+        justify-content: stretch;
+    }
+
+    .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .button,
+    .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .upload-file-stack {
+        min-width: 0;
+    }
 }
 
 @media (max-width: 760px) {
@@ -1333,11 +1357,33 @@ select:focus {
     }
 
     .mode-switch,
+    .setup-mode-row,
     .result-grid,
     .panel-editor .upload-card,
     #insightSchemaAssistSection .schema-file-actions,
     .skill-actions {
         grid-template-columns: 1fr;
+    }
+
+    .control-stack,
+    .setup-mode-field,
+    .segmented-control,
+    .mapping-skill-row,
+    .builder-mapping-upload-card,
+    .upload-card-actions {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .segmented-control {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .segment-button {
+        padding: 0 6px;
+        font-size: 12px;
+        line-height: 1.2;
     }
 
     .button,
