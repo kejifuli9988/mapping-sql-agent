@@ -3,7 +3,7 @@ services:
     name: mapping-sql-agent
     runtime: python
     plan: free
-    buildCommand: "python --version"
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "python webapp.py --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DEEPSEEK_API_KEY
