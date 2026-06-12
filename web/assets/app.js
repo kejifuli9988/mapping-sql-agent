@@ -177,19 +177,21 @@ let selectedSkillEditorId = "none";
 const customSkillSelects = new WeakMap();
 
 const RULE_MODE_UPLOAD_CONFIG = {
-    title: "上传 Excel Mapping",
-    description: "支持 `.xlsx`，系统会自动解析为标准 Mapping JSON 并回填到编辑区。",
-    buttonText: "选择 Excel 文件",
+    title: "上传业务需求文件",
+    description: "支持 mapping_data 同类业务字段需求 Excel。",
+    buttonText: "选择 Mapping 文件",
+    downloadText: "下载样例",
     accept: ".xlsx",
-    placeholder: "请粘贴标准 Mapping JSON，或上传 Excel Mapping 文件。",
+    placeholder: "请粘贴 Mapping JSON，或上传业务字段需求 Excel 文件。",
 };
 
 const DEEPSEEK_MODE_UPLOAD_CONFIG = {
-    title: "上传 Mapping 文件",
-    description: "支持：✓ Excel  ✓ CSV  ✓ Markdown  ✓ JSON。系统会先加载原始内容，再由智能体自动判断结构并分析。",
+    title: "上传业务需求文件",
+    description: "支持：✓ 业务字段需求 Excel  ✓ CSV  ✓ Markdown  ✓ JSON。",
     buttonText: "选择 Mapping 文件",
+    downloadText: "下载样例",
     accept: ".xlsx,.csv,.md,.markdown,.json,.txt,text/plain,application/json",
-    placeholder: "请粘贴 Mapping 内容，或上传 Excel / CSV / Markdown / JSON 文件。智能体增强模式下会自动分析结构并尽量修复格式问题。",
+    placeholder: "请粘贴 Mapping 内容，或上传 Excel / CSV / Markdown / JSON 文件。业务 Excel 会先转换为标准 Mapping JSON。",
 };
 
 function getCurrentGenerationMode() {
@@ -248,10 +250,10 @@ function updateBuilderUploadUI() {
     mappingUploadTitle.textContent = config.title;
     mappingUploadDescription.textContent = config.description;
     mappingUploadButtonText.textContent = config.buttonText;
+    inlineDownloadTemplateBtn.textContent = config.downloadText;
     excelInput.setAttribute("accept", config.accept);
     mappingInput.setAttribute("placeholder", config.placeholder);
     builderMappingUploadCard.classList.toggle("deepseek-upload-card", getCurrentGenerationMode() === "deepseek");
-    inlineDownloadTemplateBtn.classList.toggle("hidden", getCurrentGenerationMode() === "deepseek");
     if (!excelInput.value) {
         mappingUploadHint.textContent = "未选择任何文件";
     }
@@ -581,18 +583,78 @@ async function loadBuilderDemo(type) {
     setCurrentGenerationMode(sample.mode);
     builderSkillSelect.value = sample.skill_id || "none";
     requirementInput.value = sample.requirement || "";
-    mappingInput.value = JSON.stringify(sample.mapping, null, 2);
-    compareMappingInput.value = JSON.stringify(sample.mapping, null, 2);
     compareRequirementInput.value = sample.requirement || "";
     builderSchemaUploadState = null;
     builderSchemaAnalysisCache = null;
-    builderSchemaAssistCheckbox.checked = type === "deepseek";
-    builderSchemaInput.value = type === "deepseek" ? SCHEMA_SAMPLE : "";
     setBuilderSchemaMessage("", "");
     resetBuilderOutputs();
-    updateEnhancementVisibility();
+
+    if (type === "rule") {
+        await loadRuleDemoFromTemplate(sample);
+    } else {
+        await loadDeepseekDemoFromTemplate(sample);
+    }
+
     activeBuilderDemoType = type;
     setMessage(`${sample.title}已加载，可直接点击“生成 SQL”进行演示。`, "ok");
+}
+
+async function loadRuleDemoFromTemplate(sample) {
+    setMessage("正在加载业务样例文件并解析 Mapping...", "");
+    const fileResponse = await fetch("/api/template.xlsx");
+    if (!fileResponse.ok) {
+        throw new Error("业务样例文件下载失败");
+    }
+    const buffer = await fileResponse.arrayBuffer();
+    const parseResponse = await fetch("/api/parse-excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            filename: "business_requirement_sample.xlsx",
+            file_base64: arrayBufferToBase64(buffer),
+        }),
+    });
+    const data = await parseResponse.json();
+    if (!parseResponse.ok) {
+        throw new Error(data.error || "业务样例文件解析失败");
+    }
+    mappingUploadHint.textContent = "business_requirement_sample.xlsx";
+    mappingInput.value = data.mapping_text;
+    compareMappingInput.value = data.mapping_text;
+    builderSchemaAssistCheckbox.checked = false;
+    builderSchemaUploadState = null;
+    builderSchemaAnalysisCache = null;
+    builderSchemaInput.value = "";
+    updateEnhancementVisibility();
+    syncBuilderPreviewState();
+}
+
+async function loadDeepseekDemoFromTemplate(sample) {
+    setMessage("正在加载增强样例文件并解析 Mapping...", "");
+    const fileResponse = await fetch("/api/template-enhanced.xlsx");
+    if (!fileResponse.ok) {
+        throw new Error("增强样例文件下载失败");
+    }
+    const buffer = await fileResponse.arrayBuffer();
+    const parseResponse = await fetch("/api/load-mapping-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            filename: "business_requirement_enhanced_sample.xlsx",
+            file_base64: arrayBufferToBase64(buffer),
+            mode: "deepseek",
+        }),
+    });
+    const data = await parseResponse.json();
+    if (!parseResponse.ok) {
+        throw new Error(data.error || "增强样例文件解析失败");
+    }
+    mappingUploadHint.textContent = "business_requirement_enhanced_sample.xlsx";
+    mappingInput.value = data.mapping_text;
+    compareMappingInput.value = data.mapping_text;
+    applyMappingSchemaContext(data);
+    updateEnhancementVisibility();
+    syncBuilderPreviewState();
 }
 
 function resetBuilderInputsAfterModeSwitch(nextMode) {
@@ -671,7 +733,7 @@ async function parseMappingFile(file) {
     const mode = getCurrentGenerationMode();
     if (mode !== "deepseek" && !file.name.toLowerCase().endsWith(".xlsx")) {
         mappingUploadHint.textContent = "未选择任何文件";
-        setMessage("规则模式当前仅支持上传 .xlsx Mapping 文件。", "error");
+        setMessage("规则模式当前仅支持上传 .xlsx 业务需求文件。", "error");
         excelInput.value = "";
         return;
     }
@@ -699,7 +761,11 @@ async function parseMappingFile(file) {
         }
         mappingInput.value = data.mapping_text;
         compareMappingInput.value = data.mapping_text;
-        setMessage(data.message || "Mapping 文件加载成功。", "ok");
+        const schemaSyncMessage = applyMappingSchemaContext(data);
+        const diagnostics = Array.isArray(data.diagnostics) && data.diagnostics.length > 0
+            ? ` ${data.diagnostics[data.diagnostics.length - 1]}`
+            : "";
+        setMessage(`${data.message || "Mapping 文件加载成功。"}${diagnostics}${schemaSyncMessage}`, "ok");
     } catch (error) {
         mappingUploadHint.textContent = "未选择任何文件";
         setMessage(error.message || "Mapping 文件加载失败。", "error");
@@ -707,6 +773,21 @@ async function parseMappingFile(file) {
         setExcelState(false);
         excelInput.value = "";
     }
+}
+
+function applyMappingSchemaContext(data) {
+    const schemaText = (data.schema_text || "").trim();
+    if (!schemaText) {
+        return "";
+    }
+    builderSchemaUploadState = null;
+    builderSchemaAnalysisCache = null;
+    builderSchemaAssistCheckbox.checked = true;
+    builderSchemaInput.value = schemaText;
+    updateEnhancementVisibility();
+    builderSchemaAssistCard.textContent = "已从业务 Excel 自动提取表结构上下文，并自动启用生成前表结构分析。";
+    setBuilderSchemaMessage("已从业务 Excel 同步源表结构和加工逻辑，并自动勾选生成前分析。", "ok");
+    return " 已同步源表结构到生成前分析区，并自动启用表结构分析。";
 }
 
 async function generateSql() {
@@ -1772,7 +1853,9 @@ loadDemoBtn.addEventListener("click", async () => {
     }
 });
 inlineDownloadTemplateBtn.addEventListener("click", () => {
-    window.location.href = "/api/template.xlsx";
+    window.location.href = getCurrentGenerationMode() === "deepseek"
+        ? "/api/template-enhanced.xlsx"
+        : "/api/template.xlsx";
 });
 downloadBuilderSchemaTemplateBtn?.addEventListener("click", () => {
     window.location.href = "/api/schema-template.xlsx";

@@ -692,7 +692,7 @@ select:focus {
 }
 
 .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .button,
-.mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .upload-file-stack {
+.mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .upload-action-row {
     min-width: 220px;
 }
 
@@ -725,12 +725,24 @@ select:focus {
     gap: 8px;
 }
 
+.upload-action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, max-content));
+    gap: 8px;
+    align-items: start;
+    justify-content: end;
+}
+
+.upload-action-row .button,
+.upload-action-row .upload-button {
+    min-width: 148px;
+}
+
 .upload-file-stack {
     display: grid;
     gap: 5px;
-    min-width: 188px;
     justify-items: center;
-    text-align: center;
+    min-width: 148px;
 }
 
 .upload-hint {
@@ -740,10 +752,7 @@ select:focus {
     font-size: 11px;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.upload-file-stack .upload-button {
-    width: 100%;
+    text-align: center;
 }
 
 .upload-button {
@@ -757,9 +766,11 @@ select:focus {
     border: 1px solid #b8cadc;
     border-radius: var(--radius-md);
     color: var(--primary);
+    font-size: 13px;
     font-weight: 900;
     background: #ffffff;
     cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease, border-color 0.16s ease;
 }
 
 .upload-button input {
@@ -1300,7 +1311,7 @@ select:focus {
     }
 
     .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .button,
-    .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .upload-file-stack {
+    .mapping-skill-row:not(:has(.skill-card:not(.hidden))) .builder-mapping-upload-card .upload-action-row {
         min-width: 0;
     }
 }
@@ -1375,6 +1386,11 @@ select:focus {
         max-width: 100%;
     }
 
+    .upload-action-row {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+    }
+
     .segmented-control {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         width: 100%;
@@ -1394,7 +1410,10 @@ select:focus {
         min-width: 0;
     }
 
+    .upload-action-row .button,
+    .upload-action-row .upload-button,
     .upload-file-stack {
+        width: 100%;
         min-width: 0;
     }
 

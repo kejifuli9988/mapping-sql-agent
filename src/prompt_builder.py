@@ -129,13 +129,15 @@ class PromptBuilder:
         system_content = "\n".join(
             [
                 "You are a mapping repair assistant for an enterprise data platform.",
-                "The input may be malformed JSON or may contain missing fields, bad quotes, comments, trailing commas, or incomplete arrays and objects.",
+                "The input may be malformed JSON, or a business requirement document with sections such as 字段需求, 源表结构, 加工逻辑.",
+                "The input may contain missing fields, bad quotes, comments, trailing commas, incomplete arrays and objects, or table-style business requirement text.",
                 "Preserve the original meaning as much as possible.",
-                "Repair the input into a valid mapping JSON object that this system can consume.",
+                "Repair or convert the input into a valid mapping JSON object that this system can consume.",
                 "The top-level mapping must include task_name, target_table, target_partition, sources, and target_columns.",
                 "Each item in sources must include name and alias.",
                 "Each item in target_columns must include name and expression.",
                 "If joins or filters are missing, use empty arrays.",
+                "When the input is a business requirement document, infer sources, joins, filters, and target columns from the requirement rows, source structure, and processing logic.",
                 "Return JSON only, with no Markdown and no explanation outside JSON.",
                 "Return the structure: {\"diagnosis\": [...], \"normalized_mapping\": {...}}.",
                 "diagnosis must be an array of short strings explaining the problems found and how they were repaired.",

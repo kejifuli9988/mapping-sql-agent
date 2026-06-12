@@ -65,6 +65,9 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/template.xlsx":
             self._serve_template()
             return
+        if parsed.path == "/api/template-enhanced.xlsx":
+            self._serve_enhanced_template()
+            return
         if parsed.path == "/api/schema-template.xlsx":
             self._serve_schema_template()
             return
@@ -179,13 +182,18 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             body = self._read_json_body()
             filename = body.get("filename", "mapping.xlsx")
             content = base64.b64decode(body["file_base64"])
-            mapping = self.excel_parser.parse(content)
+            parsed = self.excel_parser.parse_with_metadata(content)
+            mapping = parsed["mapping"]
             self._send_json(
                 {
                     "filename": filename,
                     "mapping": mapping,
                     "mapping_text": json.dumps(mapping, ensure_ascii=False, indent=2),
-                    "message": "Excel mapping parsed successfully and has been filled into the editor.",
+                    "format": parsed["format"],
+                    "diagnostics": parsed["diagnostics"],
+                    "message": parsed["message"],
+                    "schema_text": parsed.get("schema_text", ""),
+                    "schema_source": parsed.get("schema_source", ""),
                 }
             )
         except KeyError:
@@ -208,18 +216,14 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             lower_name = filename.lower()
 
             if lower_name.endswith(".xlsx"):
-                if mode == "deepseek":
-                    mapping_text = self.excel_parser.extract_text(content)
-                    message = "已加载 Excel Mapping 原始内容，DeepSeek 可在生成前自动理解并修复格式。"
-                else:
-                    mapping = self.excel_parser.parse(content)
-                    mapping_text = json.dumps(mapping, ensure_ascii=False, indent=2)
-                    message = "Excel Mapping 已解析为标准 Mapping JSON 并回填到编辑区。"
+                parsed = self.excel_parser.parse_with_metadata(content)
+                mapping_text = json.dumps(parsed["mapping"], ensure_ascii=False, indent=2)
+                message = parsed["message"]
             elif lower_name.endswith((".csv", ".md", ".markdown", ".json", ".txt")):
                 mapping_text = content.decode("utf-8", errors="ignore").strip()
                 if not mapping_text:
                     raise ValueError("上传文件内容为空。")
-                message = "文件内容已加载到编辑区，DeepSeek 会结合内容自动分析 Mapping 结构。"
+                message = "文件内容已加载到编辑区，智能体会结合内容自动分析 Mapping 结构。"
             else:
                 raise ValueError("当前仅支持 .xlsx、.csv、.md、.markdown、.json、.txt 文件。")
 
@@ -227,6 +231,10 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                 {
                     "filename": filename,
                     "mapping_text": mapping_text,
+                    "format": parsed["format"] if lower_name.endswith(".xlsx") else "raw_text",
+                    "diagnostics": parsed["diagnostics"] if lower_name.endswith(".xlsx") else [],
+                    "schema_text": parsed.get("schema_text", "") if lower_name.endswith(".xlsx") else "",
+                    "schema_source": parsed.get("schema_source", "") if lower_name.endswith(".xlsx") else "",
                     "message": message,
                 }
             )
@@ -568,7 +576,9 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
             return "excel"
         if lower_name.endswith(".csv"):
             return "csv"
-        if lower_name.endswith(".json") or lowered.startswith("{") or lowered.startswith("["):
+        if lowered.startswith("[table]") or lowered.startswith("[schema]") or lowered.startswith("[字段需求]"):
+            return "text"
+        if lower_name.endswith(".json") or lowered.startswith("{") or lowered.startswith("[{") or lowered.startswith('["') or lowered == "[]":
             return "json"
         if lower_name.endswith(".sql") or "create table" in lowered:
             return "ddl"
@@ -590,7 +600,22 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
         )
         self.send_header(
             "Content-Disposition",
-            'attachment; filename="mapping_template.xlsx"',
+            'attachment; filename="business_requirement_sample.xlsx"',
+        )
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def _serve_enhanced_template(self) -> None:
+        content = self.sample_excel_builder.build_enhanced()
+        self.send_response(HTTPStatus.OK)
+        self.send_header(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.send_header(
+            "Content-Disposition",
+            'attachment; filename="business_requirement_enhanced_sample.xlsx"',
         )
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
