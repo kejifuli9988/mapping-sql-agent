@@ -177,12 +177,12 @@ let selectedSkillEditorId = "none";
 const customSkillSelects = new WeakMap();
 
 const RULE_MODE_UPLOAD_CONFIG = {
-    title: "上传业务需求文件",
-    description: "支持 mapping_data 同类业务字段需求 Excel。",
-    buttonText: "选择 Mapping 文件",
-    downloadText: "下载样例",
+    title: "上传 Excel Mapping",
+    description: "支持：.xlsx，系统会自动解析为标准 Mapping JSON 并回填到编辑区。",
+    buttonText: "选择 Excel 文件",
+    downloadText: "下载 Excel 模板",
     accept: ".xlsx",
-    placeholder: "请粘贴 Mapping JSON，或上传业务字段需求 Excel 文件。",
+    placeholder: "请粘贴标准 Mapping JSON，或上传 Excel Mapping 文件。",
 };
 
 const DEEPSEEK_MODE_UPLOAD_CONFIG = {
@@ -862,10 +862,14 @@ function renderBuilderResult(data) {
     if (data.schema_analysis_used) {
         builderSchemaAnalysisCache = data.schema_analysis_used;
     }
-    builderSchemaAssistCard.textContent = formatBuilderSchemaAssistCard(
-        data.schema_analysis_used || builderSchemaAnalysisCache,
-        Boolean(data.schema_analysis_used)
-    );
+    if (data.requested_ai_enabled) {
+        builderSchemaAssistCard.textContent = formatBuilderSchemaAssistCard(
+            data.schema_analysis_used || builderSchemaAnalysisCache,
+            Boolean(data.schema_analysis_used)
+        );
+    } else {
+        builderSchemaAssistCard.textContent = "当前未启用生成前表结构分析。";
+    }
     updateVersionCard(data.version_record);
     updateRequirementCard(data.user_requirement || "");
     compareMappingInput.value = JSON.stringify(data.normalized_mapping, null, 2);
