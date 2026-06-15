@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import openpyxl
 
 from .mapping_loader import MappingLoader
+from .standardization_advisor import StandardizationAdvisor
 
 
 NS_MAIN = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -58,6 +59,7 @@ class ExcelMappingParser:
 
     def __init__(self) -> None:
         self.loader = MappingLoader()
+        self.standardization_advisor = StandardizationAdvisor()
 
     def parse(self, content: bytes) -> dict:
         return self.parse_with_metadata(content)["mapping"]
@@ -114,6 +116,7 @@ class ExcelMappingParser:
         target_columns: list[dict] = []
         filters: list[str] = []
         diagnostics: list[str] = [f"识别业务字段需求工作表：{requirement_sheet.title}。"]
+        standardization_notes: list[str] = []
 
         def register_source(table_name: str) -> str:
             table_name = table_name.strip()
@@ -164,7 +167,9 @@ class ExcelMappingParser:
                 diagnostics.append(f"第 {index} 行缺少来源字段或 DA 试算逻辑，已跳过：{record.get('cn_name')}")
                 continue
 
-            target_name = self._resolve_target_name(record, source_field)
+            target_name, standard_note = self._resolve_target_name(record, source_field)
+            if standard_note:
+                standardization_notes.append(standard_note)
             column = {
                 "name": target_name,
                 "expression": expression,
@@ -196,6 +201,7 @@ class ExcelMappingParser:
             "parse_notes": [
                 "原始业务 Excel 已通过规则解析转换为标准 Mapping JSON，未调用 AI。",
                 "来源表、来源字段和 DA 试算逻辑被作为确定性生成约束。",
+                "系统会结合本地贯标词典和已贯标字段推荐目标字段英文名。",
                 "如目标表名或关联条件与真实口径不一致，可在 Mapping 输入框中继续修改。",
             ],
         }
@@ -203,6 +209,8 @@ class ExcelMappingParser:
         diagnostics.append(
             f"解析出 {len(source_aliases)} 张来源表、{len(target_columns)} 个目标字段、{len(joins)} 个关联条件。"
         )
+        if standardization_notes:
+            diagnostics.append(f"已应用 {len(standardization_notes)} 条字段贯标建议。")
         return {
             "mapping": validated,
             "format": "business_requirement_excel",
@@ -210,6 +218,7 @@ class ExcelMappingParser:
             "diagnostics": diagnostics,
             "schema_text": schema_text,
             "schema_source": "business_requirement_excel",
+            "standardization_notes": standardization_notes,
         }
 
     def extract_text(self, content: bytes) -> str:
@@ -657,15 +666,24 @@ class ExcelMappingParser:
             parts[part_index] = segment
         return "".join(parts)
 
-    def _resolve_target_name(self, record: dict[str, str], source_field: str) -> str:
+    def _resolve_target_name(self, record: dict[str, str], source_field: str) -> tuple[str, str]:
+        explicit_name = ""
         for key in ("en_name", "actual_name"):
             value = self._clean_field_name(record.get(key, ""))
             if value:
-                return value.lower()
+                explicit_name = value.lower()
+                break
+        recommendation = self.standardization_advisor.recommend_name(
+            cn_name=record.get("cn_name", ""),
+            explicit_name=explicit_name,
+            source_field=source_field,
+        )
+        if recommendation["name"]:
+            return recommendation["name"], recommendation["message"]
         if source_field:
-            return source_field.lower()
+            return source_field.lower(), recommendation["message"]
         cn_name = record.get("cn_name", "")
-        return f"field_{abs(hash(cn_name)) % 10000}"
+        return f"field_{abs(hash(cn_name)) % 10000}", recommendation["message"]
 
     def _infer_business_joins(
         self,

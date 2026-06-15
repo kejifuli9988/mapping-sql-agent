@@ -6,6 +6,7 @@ const versionCard = document.getElementById("versionCard");
 const requirementCard = document.getElementById("requirementCard");
 const builderAiContextCard = document.getElementById("builderAiContextCard");
 const builderSchemaAssistCard = document.getElementById("builderSchemaAssistCard");
+const builderContextDetails = document.getElementById("builderContextDetails");
 const sqlOutput = document.getElementById("sqlOutput");
 const draftSqlOutput = document.getElementById("draftSqlOutput");
 const normalizedMappingOutput = document.getElementById("normalizedMappingOutput");
@@ -595,6 +596,7 @@ async function loadBuilderDemo(type) {
         await loadDeepseekDemoFromTemplate(sample);
     }
 
+    applyBuilderContextFoldDefault();
     activeBuilderDemoType = type;
     setMessage(`${sample.title}已加载，可直接点击“生成 SQL”进行演示。`, "ok");
 }
@@ -671,6 +673,7 @@ function resetBuilderInputsAfterModeSwitch(nextMode) {
     builderSchemaAnalysisCache = null;
     setBuilderSchemaMessage("", "");
     resetBuilderOutputs();
+    applyBuilderContextFoldDefault();
     updateEnhancementVisibility();
     syncBuilderPreviewState();
     setMessage("已切换生成模式，输入区已重置为空白。需要演示数据时可点击“加载样例”。", "");
@@ -765,7 +768,10 @@ async function parseMappingFile(file) {
         const diagnostics = Array.isArray(data.diagnostics) && data.diagnostics.length > 0
             ? ` ${data.diagnostics[data.diagnostics.length - 1]}`
             : "";
-        setMessage(`${data.message || "Mapping 文件加载成功。"}${diagnostics}${schemaSyncMessage}`, "ok");
+        const standardizationMessage = Array.isArray(data.standardization_notes) && data.standardization_notes.length > 0
+            ? ` 已生成 ${data.standardization_notes.length} 条字段贯标建议。`
+            : "";
+        setMessage(`${data.message || "Mapping 文件加载成功。"}${diagnostics}${standardizationMessage}${schemaSyncMessage}`, "ok");
     } catch (error) {
         mappingUploadHint.textContent = "未选择任何文件";
         setMessage(error.message || "Mapping 文件加载失败。", "error");
@@ -780,8 +786,16 @@ function applyMappingSchemaContext(data) {
     if (!schemaText) {
         return "";
     }
+    const isDeepSeek = getCurrentGenerationMode() === "deepseek";
     builderSchemaUploadState = null;
     builderSchemaAnalysisCache = null;
+    if (!isDeepSeek) {
+        builderSchemaAssistCheckbox.checked = false;
+        builderSchemaInput.value = "";
+        updateEnhancementVisibility();
+        setBuilderSchemaMessage("", "");
+        return "";
+    }
     builderSchemaAssistCheckbox.checked = true;
     builderSchemaInput.value = schemaText;
     updateEnhancementVisibility();
@@ -1663,6 +1677,13 @@ function updateEnhancementVisibility() {
     syncInsightPreviewState();
 }
 
+function applyBuilderContextFoldDefault() {
+    if (!builderContextDetails) {
+        return;
+    }
+    builderContextDetails.open = getCurrentGenerationMode() === "deepseek";
+}
+
 function updateDemoButtonLabel() {
     if (activeWorkspace === "compare") {
         loadDemoBtn.textContent = "加载版本对比样例";
@@ -1966,6 +1987,7 @@ async function initialize() {
     await loadDeepSeekConfigStatus();
     await loadSkills();
     setCurrentGenerationMode(getCurrentGenerationMode());
+    applyBuilderContextFoldDefault();
     switchMode("builder");
     updateEnhancementVisibility();
     updateDemoButtonLabel();

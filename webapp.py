@@ -194,6 +194,7 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                     "message": parsed["message"],
                     "schema_text": parsed.get("schema_text", ""),
                     "schema_source": parsed.get("schema_source", ""),
+                    "standardization_notes": parsed.get("standardization_notes", []),
                 }
             )
         except KeyError:
@@ -235,6 +236,7 @@ class MappingSQLRequestHandler(BaseHTTPRequestHandler):
                     "diagnostics": parsed["diagnostics"] if lower_name.endswith(".xlsx") else [],
                     "schema_text": parsed.get("schema_text", "") if lower_name.endswith(".xlsx") else "",
                     "schema_source": parsed.get("schema_source", "") if lower_name.endswith(".xlsx") else "",
+                    "standardization_notes": parsed.get("standardization_notes", []) if lower_name.endswith(".xlsx") else [],
                     "message": message,
                 }
             )
